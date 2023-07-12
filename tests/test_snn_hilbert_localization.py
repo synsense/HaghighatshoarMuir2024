@@ -1,20 +1,21 @@
 # ----------------------------------------------------------------------------------------------------------------------
-# This module includes several test scenarios for multi-mic localization.
+# This module includes several test scenarios for multi-mic localization using SNN encoding.
 #
 #
 # (C) Saeid Haghighatshoar
 # email: saeid.haghighatshoar@synsense.ai
 #
 #
-# last update: 05.07.2023
+# last update: 10.07.2023
 # ----------------------------------------------------------------------------------------------------------------------
 import numpy as np
-
+from numpy.linalg import norm
+from scipy.signal import hilbert
 from micloc.array_geometry import CircularArray
-from micloc.beamformer import Beamformer
+from micloc.snn_beamformer import SNNBeamformer
 from micloc.utils import Envelope
 import matplotlib.pyplot as plt
-from scipy.signal import lfilter
+from scipy.signal import lfilter, butter
 
 
 def test_array_resolution():
@@ -25,18 +26,32 @@ def test_array_resolution():
     radius = 4.5e-2
     num_mic = 8
     fs = 50_000
+    freq_design = 1000
 
     geometry = CircularArray(radius=radius, num_mic=num_mic)
 
     # build the corresponding beamformer
-    kernel_duration = 10e-3
-    beamf = Beamformer(geometry=geometry, kernel_duration=kernel_duration, fs=fs)
+    kernel_duration = 30e-3
+    target_spike_rate = 1200
+
+    tau_mem = 0.3/(2*np.pi*target_spike_rate)
+    tau_syn = tau_mem
+    tau_vec = np.asarray([tau_syn, tau_mem])
+
+    beamf = SNNBeamformer(geometry=geometry, kernel_duration=kernel_duration, tau_vec=tau_vec, target_spike_rate=target_spike_rate, fs=fs)
 
     # build beamformer matrix for various DoAs
     # 1. build a template signal
-    duration = 0.4
-    freq_design = 1500
+    duration = 1.0
     time_temp = np.arange(0, duration, step=1 / fs)
+
+    order = 2
+    freq_min = 0.6 * freq_design
+    cutoff = [freq_min, freq_design]
+    b, a = butter(order, cutoff, btype='bandpass', analog=False, output='ba', fs=fs)
+    noise = np.random.randn(len(time_temp))
+    sig_temp = lfilter(b, a, noise)
+
     sig_temp = np.sin(2 * np.pi * freq_design * time_temp)
 
     # 2. use an angular grid
@@ -48,7 +63,7 @@ def test_array_resolution():
     # plot the array resolution
     corr = np.abs(bf_mat.conj().T @ bf_mat)
 
-    selected_indices = np.arange(0, len(corr), len(corr)//4)
+    selected_indices = np.arange(0, len(corr), len(corr) // 4)
     plt.plot(doa_list / np.pi * 180, corr[selected_indices, :].T)
     plt.xlabel("DoA")
     plt.ylabel("array resolution")
@@ -75,7 +90,7 @@ def test_fixed_target():
     # build beamformer matrix for various DoAs
     # 1. build a template signal
     duration = 30e-3
-    freq_design = 3000
+    freq_design = 4_000
     time_temp = np.arange(0, duration, step=1 / fs)
     sig_temp = np.sin(2 * np.pi * freq_design * time_temp)
 
@@ -89,8 +104,7 @@ def test_fixed_target():
     freq_test = freq_design * 1.1
 
     doa_target = np.pi / 4
-    snr_db = 100
-    sig_bf = beamf.apply_to_template(bf_mat=bf_mat, template=(time_temp, sig_temp, doa_target), snr_db=snr_db)
+    sig_bf = beamf.apply_to_template(bf_mat=bf_mat, template=(time_temp, sig_temp, doa_target))
 
     # compute power
     power = np.mean(np.abs(sig_bf) ** 2, axis=1)
@@ -102,7 +116,7 @@ def test_fixed_target():
     plt.ylim([0, 1.05])
     plt.grid(True)
     plt.title(
-        f"power of beamformed signal: freq-design:{int(freq_design)} Hz\nfreq-target:{int(freq_test)} Hz, DoA-target: {doa_target * 180 / np.pi:0.2f}")
+        f"power of beamformed signal: freq-design:{freq_design} Hz\nfreq-target:{freq_test} Hz, DoA-target: {doa_target * 180 / np.pi:0.2f}")
     plt.axvline(x=doa_target * 180 / np.pi, color="r", label="target DoA")
 
     plt.show()
@@ -197,9 +211,9 @@ def test_moving_target():
 
 
 def main():
-    # test_array_resolution()
+    test_array_resolution()
     # test_fixed_target()
-    test_moving_target()
+    # test_moving_target()
 
 
 if __name__ == '__main__':
