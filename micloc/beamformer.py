@@ -64,7 +64,7 @@ class Beamformer:
 
         print()
         print('+'*150)
-        print(" designing bemaforming matrices for various DoAs ".center(150, '+'))
+        print(" designing beamforming matrices for various DoAs ".center(150, '+'))
         print('+' * 150)
 
         for doa in tqdm(doa_list):
@@ -139,7 +139,7 @@ class Beamformer:
         time_temp, sig_temp, doa_temp = time_in, sig_in, doa_in
 
         # compute the signal received at the array
-        # NOTE: here we apply a delay normalization to all the samples later rather than sample by sample noirmalization which yields wrong results.
+        # NOTE: here we apply a delay normalization to all the samples later rather than sample by sample normalization which will yield wrong results.
         delays = np.asarray([self.geometry.delays(theta=doa, normalized=False) for doa in doa_temp]).T
         delays = delays - delays.min()
 
