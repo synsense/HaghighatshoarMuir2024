@@ -16,7 +16,7 @@ One of the problems with Hilbert transform is that it requires having access to 
 would like to have an online version in which the input signal is processed regularly in short intervals and a result is computed.
 These computed results then are assembled in time to decide on localization.
 
-To do this, we convert the Hilbert transform into a windowed kernel version of specified duration $Delta$. In this version,
-if the input signal is of duration $Delta$, the output of the kernel version would be the same as the original Hilbert transform, whereas
+To do this, we convert the Hilbert transform into a windowed kernel version of specified duration $\Delta$. In this version,
+if the input signal is of duration $\Delta$, the output of the kernel version would be the same as the original Hilbert transform, whereas
 if the signal is longer, the kernel version will yield only an approximation of the Hilbert transform.
 

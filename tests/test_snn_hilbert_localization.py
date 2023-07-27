@@ -24,15 +24,15 @@ def test_array_resolution():
     """
     # build a geometry
     radius = 4.5e-2
-    num_mic = 8
+    num_mic = 7
     fs = 50_000
-    freq_design = 1000
+    freq_design = 1200
 
     geometry = CircularArray(radius=radius, num_mic=num_mic)
 
     # build the corresponding beamformer
     kernel_duration = 30e-3
-    target_spike_rate = 1200
+    target_spike_rate = 1300
 
     tau_mem = 0.3/(2*np.pi*target_spike_rate)
     tau_syn = tau_mem
@@ -46,13 +46,13 @@ def test_array_resolution():
     time_temp = np.arange(0, duration, step=1 / fs)
 
     order = 2
-    freq_min = 0.6 * freq_design
+    freq_min = 0.9 * freq_design
     cutoff = [freq_min, freq_design]
     b, a = butter(order, cutoff, btype='bandpass', analog=False, output='ba', fs=fs)
     noise = np.random.randn(len(time_temp))
     sig_temp = lfilter(b, a, noise)
 
-    sig_temp = np.sin(2 * np.pi * freq_design * time_temp)
+    #sig_temp = np.sin(2 * np.pi * freq_design * time_temp)
 
     # 2. use an angular grid
     num_grid = 8 * num_mic
@@ -85,12 +85,20 @@ def test_fixed_target():
 
     # build the corresponding beamformer
     kernel_duration = 30e-3
-    beamf = Beamformer(geometry=geometry, kernel_duration=kernel_duration, fs=fs)
+    target_spike_rate = 700
+
+    tau_mem = 0.3 / (2 * np.pi * target_spike_rate)
+    tau_syn = tau_mem
+    tau_vec = np.asarray([tau_syn, tau_mem])
+
+    beamf = SNNBeamformer(geometry=geometry, kernel_duration=kernel_duration, tau_vec=tau_vec,
+                          target_spike_rate=target_spike_rate, fs=fs)
+
 
     # build beamformer matrix for various DoAs
     # 1. build a template signal
-    duration = 30e-3
-    freq_design = 4_000
+    duration = 100e-3
+    freq_design = 1_000
     time_temp = np.arange(0, duration, step=1 / fs)
     sig_temp = np.sin(2 * np.pi * freq_design * time_temp)
 
@@ -104,7 +112,8 @@ def test_fixed_target():
     freq_test = freq_design * 1.1
 
     doa_target = np.pi / 4
-    sig_bf = beamf.apply_to_template(bf_mat=bf_mat, template=(time_temp, sig_temp, doa_target))
+    snr_db = 10
+    sig_bf = beamf.apply_to_template(bf_mat=bf_mat, template=(time_temp, sig_temp, doa_target), snr_db=snr_db)
 
     # compute power
     power = np.mean(np.abs(sig_bf) ** 2, axis=1)

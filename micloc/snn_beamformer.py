@@ -73,7 +73,7 @@ class SNNBeamformer:
 
         print()
         print('+'*150)
-        print(" designing SNN bemaforming matrices for various DoAs ".center(150, '+'))
+        print(" designing SNN beamforming matrices for various DoAs ".center(150, '+'))
         print('+' * 150)
 
         # build the neuron kernel
@@ -115,11 +115,15 @@ class SNNBeamformer:
             # convert the input signal into spikes
             spikes_in_vec = self.spk_encoder.evolve(sig_in_vec.T)
 
+            # convert spikes into +1 and -1 for better phase stability
+            spikes_in_vec = 2 * spikes_in_vec - 1
+
             # compute the in-phase and quadrature parts before applying to the neuron
             sig_in_vec_h = spikes_in_vec + 1j * lfilter(self.kernel, [1], spikes_in_vec, axis=0)
 
             # compute the filtered version
-            sig_in_vec_h_filtered = lfilter(neuron_impulse_response, [1], sig_in_vec_h, axis=0)
+            #sig_in_vec_h_filtered = lfilter(neuron_impulse_response, [1], sig_in_vec_h, axis=0)
+            sig_in_vec_h_filtered = hilbert(spikes_in_vec, axis=0)
 
             # now that the input signals in all arrays are available, design the beamformer
             # 1. remove the transient part
@@ -185,6 +189,12 @@ class SNNBeamformer:
         noise = np.sqrt(np.mean(sig_in_vec**2))/np.sqrt(snr) * np.random.randn(*sig_in_vec.shape)
         sig_in_vec += noise
 
+        # convert the input signal into spikes
+        spikes_in_vec = self.spk_encoder.evolve(sig_in_vec.T)
+
+        # convert spikes into +1 and -1 for better phase stability
+        spikes_in_vec = 2 * spikes_in_vec - 1
+
         # compute the Hilbert transform
         sig_in_vec_h = sig_in_vec + 1j * lfilter(self.kernel, [1], sig_in_vec, axis=1)
 
@@ -211,8 +221,14 @@ class SNNBeamformer:
         if num_chan != num_mic:
             raise ValueError(f"number of channels in the input siganl {num_chan} should be the same as the number of microphones {num_mic}!")
 
+        # convert the input signal into spikes
+        spikes_in_vec = self.spk_encoder.evolve(data_in.T)
+
+        # convert spikes into +1 and -1 for better phase stability
+        spikes_in_vec = 2 * spikes_in_vec - 1
+
         # compute the kernel Hilbert transform of the input signal
-        data_in_kernel_H = data_in + 1j * lfilter(self.kernel, [1], data_in, axis=1)
+        data_in_kernel_H = spikes_in_vec + 1j * lfilter(self.kernel, [1], spikes_in_vec, axis=1)
 
         # apply bemaforming
         data_bf = bf_mat.conj().T @ data_in_kernel_H
