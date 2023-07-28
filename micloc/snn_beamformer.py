@@ -130,7 +130,7 @@ class SNNBeamformer:
             stable_part = sig_in_vec_h_filtered.shape[0]//4
             sig_in_vec_h_filtered_stable = sig_in_vec_h_filtered[stable_part:, :]
 
-            sig_in_vec_h_filtered_stable -= np.mean(sig_in_vec_h_filtered_stable)
+            sig_in_vec_h_filtered_stable -= np.mean(sig_in_vec_h_filtered_stable, axis=0).reshape(1,-1)
 
             # 2. compute the covariance matrix
             cov_mat = 1 / sig_in_vec_h_filtered_stable.shape[0] * (sig_in_vec_h_filtered_stable.conj().T @ sig_in_vec_h_filtered_stable)
