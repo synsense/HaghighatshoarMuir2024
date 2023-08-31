@@ -6,12 +6,12 @@
 # email: saeid.haghighatshoar@synsense.ai
 #
 #
-# last update: 10.07.2023
+# last update: 31.08.2023
 # ----------------------------------------------------------------------------------------------------------------------
 import numpy as np
 from numpy.linalg import norm
 from scipy.signal import hilbert
-from micloc.array_geometry import CircularArray
+from micloc.array_geometry import CenterCircularArray
 from micloc.snn_beamformer import SNNBeamformer
 from micloc.utils import Envelope
 import matplotlib.pyplot as plt
@@ -25,16 +25,16 @@ def test_array_resolution():
     # build a geometry
     radius = 4.5e-2
     num_mic = 7
-    fs = 50_000
-    freq_design = 1200
+    fs = 48_000
+    freq_design = 3000
 
-    geometry = CircularArray(radius=radius, num_mic=num_mic)
+    geometry = CenterCircularArray(radius=radius, num_mic=num_mic)
 
     # build the corresponding beamformer
-    kernel_duration = 30e-3
+    kernel_duration = 10e-3
     target_spike_rate = 1300
 
-    tau_mem = 0.3/(2*np.pi*target_spike_rate)
+    tau_mem = 2/(2*np.pi*target_spike_rate)
     tau_syn = tau_mem
     tau_vec = np.asarray([tau_syn, tau_mem])
 

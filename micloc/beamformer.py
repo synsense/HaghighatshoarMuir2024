@@ -34,7 +34,7 @@ class Beamformer:
         impulse = np.zeros(ker_len)
         impulse[0] = 1
 
-        self.kernel = np.imag(hilbert(impulse))
+        self.kernel = np.fft.fftshift(np.imag(hilbert(impulse)))
 
     def design_from_template(self, template: Tuple[np.ndarray, np.ndarray], doa_list: np.ndarray) -> np.ndarray:
         """

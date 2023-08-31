@@ -11,7 +11,8 @@
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from scipy.signal import hilbert, lfilter
+from scipy.signal import hilbert, lfilter, freqz
+
 from pathlib import Path
 import os
 from tqdm import tqdm
@@ -25,7 +26,10 @@ def use_latex():
         'pgf.rcfonts': False,
     })
 
-use_latex()
+SAVE_PLOTS = True
+
+if SAVE_PLOTS:
+    use_latex()
 
 def plot_STHT():
     # find the directory for this file
@@ -44,23 +48,64 @@ def plot_STHT():
 
     impulse = np.zeros(win_len)
     impulse[0] = 1
-    ker_h = np.imag(hilbert(impulse))
+    ker_h = np.fft.fftshift(np.imag(hilbert(impulse)))
 
     # signal duration
     sig_duartion = 4 / np.min(freq_list)
     sig_len = int(fs * sig_duartion)
     time_vec = np.linspace(0, sig_duartion, sig_len)
 
+    # compute the frequency response
+    num_freq_samples = 10_000
+    w, h = freqz(ker_h, a=1, worN=num_freq_samples, whole=True, plot=None, fs=fs, include_nyquist=True)
+    w[w >= fs / 2] = w[w >= fs / 2] - fs
+
     # print the kernel
-    plt.figure()
+    plt.figure(figsize=(6,6.5))
     filename = os.path.join(root, "kernel.pgf")
-    plt.plot(np.arange(0,len(ker_h))/fs, np.fft.fftshift(ker_h))
-    plt.xlabel("time (sec)")
+
+    plt.subplot(211)
+    plt.plot(np.arange(0, len(ker_h)) / fs * 1000, ker_h)
+    plt.xlabel("time (ms)")
     plt.ylabel("STHT Kernel")
-    plt.title(f"STHT kernel: duration: {int(sig_duartion * 1000)} ms, fs: {int(fs/1000)} KHz")
+    plt.title(fr"STHT kernel: duration: {int(win_duration * 1000):0.1f} ms, $f_s$: {int(fs / 1000)} KHz")
     plt.grid(True)
-    # plt.show()
-    plt.savefig(filename)
+
+    plt.subplot(212)
+    plt.plot(w/1000, 20 * np.log10(np.abs(h)))
+    plt.ylim([-5, 5])
+    plt.ylabel("STHT freq response [dB]")
+    plt.xlabel("freq (KHz)")
+    plt.grid(True)
+
+    if SAVE_PLOTS:
+        plt.savefig(filename)
+    else:
+        plt.draw()
+
+
+
+    # plt.figure()
+    # filename = os.path.join(root, "kernel_freq.pgf")
+    #
+    # plt.subplot(211)
+    # plt.plot(w, 20*np.log10(np.abs(h)))
+    # plt.ylim([-5, 5])
+    # plt.ylabel("freq response [dB]")
+    # plt.grid(True)
+    #
+    # plt.subplot(212)
+    # plt.plot(w, np.unwrap(np.angle(h)))
+    # plt.xlabel("freq (Hz)")
+    # plt.ylabel("phase response")
+    # plt.grid(True)
+    #
+    # if SAVE_PLOTS:
+    #     plt.savefig(filename)
+    # else:
+    #     plt.draw()
+
+    plt.show()
 
 
     for freq in tqdm(freq_list):
@@ -79,11 +124,19 @@ def plot_STHT():
         plt.grid(True)
         plt.xlabel("time (sec)")
         plt.ylabel("signals")
-        plt.title(f"Hilbert Transform: f: {freq} Hz, {r'$f_s$'}: {fs} Hz, kernel-dur:{1000*win_duration:0.2f} ms")
-        plt.savefig(filename)
+        plt.title(f"STHT: f: {freq} Hz, {r'$f_s$'}: {int(fs/1000)} KHz, kernel-dur: {1000*win_duration:0.1f} ms")
+
+        if SAVE_PLOTS:
+            plt.savefig(filename)
+        else:
+            plt.draw()
 
         print(f"simulation was done for freq: {freq} and plot was saved in file:{filename}")
 
+    if SAVE_PLOTS:
+        pass
+    else:
+        plt.show()
 
 def main():
     plot_STHT()

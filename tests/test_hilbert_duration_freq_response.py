@@ -27,14 +27,14 @@ def test_freq_response():
     impulse = np.zeros(ker_len)
     impulse[0] = 1
 
-    ker_h = np.imag(hilbert(impulse))
+    ker_h = np.fft.fftshift(np.imag(hilbert(impulse)))
 
     # range of frequencies to be covered
-    fmin_ker = 1/ker_duration
+    fmin_ker = 2/ker_duration
     fmin = min([1*fmin_ker, fs/2])
     fmax = min([150*fmin_ker, fs/2])
 
-    num_freq = 10000
+    num_freq = 1000
     freq_vec = 10**np.linspace(np.log10(fmin), np.log10(fmax), num_freq)
 
     freq_res = []

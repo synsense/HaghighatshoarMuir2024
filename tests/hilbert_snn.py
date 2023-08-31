@@ -822,11 +822,11 @@ def main():
     # test_hilbert_SNN()
     # test_hilbert_harmonics()
     # test_hilbert_SNN_localization()
-    # test_hilbert_SNN_beamforming()
+    test_hilbert_SNN_beamforming()
     # test_hilbert_kernel()
     # test_short_hilbert()
     # test_hilbert_chirp()
-    test_hilbert_chirp_circular()
+    # test_hilbert_chirp_circular()
     # test_hilbert_freq_domain()
 
 

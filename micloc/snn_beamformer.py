@@ -15,6 +15,7 @@ from typing import Tuple, Union
 from scipy.signal import hilbert, lfilter
 from numbers import Number
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 
 class SNNBeamformer:
@@ -36,7 +37,7 @@ class SNNBeamformer:
         self.kernel_length = int(self.fs * self.kernel_duration)
         impulse = np.zeros(self.kernel_length)
         impulse[0] = 1
-        self.kernel = np.imag(hilbert(impulse))
+        self.kernel = np.fft.fftshift(np.imag(hilbert(impulse)))
 
         # build the corresponding neuron kernel
         self.tau_vec = tau_vec
@@ -112,24 +113,29 @@ class SNNBeamformer:
 
             sig_in_vec = np.asarray(sig_in_vec)
 
+
             # convert the input signal into spikes
             spikes_in_vec = self.spk_encoder.evolve(sig_in_vec.T)
 
+            # remove the mean value of the signal
+            spikes_in_vec -= np.mean(spikes_in_vec)
+
             # convert spikes into +1 and -1 for better phase stability
-            spikes_in_vec = 2 * spikes_in_vec - 1
+            # spikes_in_vec = 2 * spikes_in_vec - 1
 
             # compute the in-phase and quadrature parts before applying to the neuron
             sig_in_vec_h = spikes_in_vec + 1j * lfilter(self.kernel, [1], spikes_in_vec, axis=0)
 
             # compute the filtered version
-            #sig_in_vec_h_filtered = lfilter(neuron_impulse_response, [1], sig_in_vec_h, axis=0)
-            sig_in_vec_h_filtered = hilbert(spikes_in_vec, axis=0)
+            sig_in_vec_h_filtered = lfilter(neuron_impulse_response, [1], sig_in_vec_h, axis=0)
+            # sig_in_vec_h_filtered = hilbert(spikes_in_vec, axis=0)
 
             # now that the input signals in all arrays are available, design the beamformer
             # 1. remove the transient part
             stable_part = sig_in_vec_h_filtered.shape[0]//4
             sig_in_vec_h_filtered_stable = sig_in_vec_h_filtered[stable_part:, :]
 
+            # remove the DC part of the signal in computing power
             sig_in_vec_h_filtered_stable -= np.mean(sig_in_vec_h_filtered_stable, axis=0).reshape(1,-1)
 
             # 2. compute the covariance matrix
