@@ -35,7 +35,7 @@ def test_array_resolution():
     # build beamformer matrix for various DoAs
     # 1. build a template signal
     duration = 0.4
-    freq_design = 1500
+    freq_design = 2000
     time_temp = np.arange(0, duration, step=1 / fs)
     sig_temp = np.sin(2 * np.pi * freq_design * time_temp)
 
@@ -52,7 +52,7 @@ def test_array_resolution():
     plt.plot(doa_list / np.pi * 180, corr[selected_indices, :].T)
     plt.xlabel("DoA")
     plt.ylabel("array resolution")
-    plt.title(f"array resolution: freq={freq_design}, ker-duration:{kernel_duration} sec")
+    plt.title(f"array resolution: freq={freq_design}, ker-duration:{int(1000 * kernel_duration)} ms")
     plt.grid(True)
     plt.show()
 
@@ -197,9 +197,9 @@ def test_moving_target():
 
 
 def main():
-    # test_array_resolution()
+    test_array_resolution()
     # test_fixed_target()
-    test_moving_target()
+    # test_moving_target()
 
 
 if __name__ == '__main__':

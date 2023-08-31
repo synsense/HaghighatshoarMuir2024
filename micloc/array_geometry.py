@@ -62,6 +62,20 @@ class CircularArray(ArrayGeometry):
         super().__init__(r_vec=r_vec, theta_vec=theta_vec, speed=speed)
 
 
+class CenterCircularArray(ArrayGeometry):
+    def __init__(self, radius: float, num_mic: int, speed: float = 340):
+        """
+        class encoding the geometry of a circular array which has a microphone in the center.
+        Args:
+            radius (float): radius of the array.
+            num_mic (int): number of microphones.
+            speed (float): speed of wave captured by the array. Defaults to 340 m/s.
+        """
+        r_vec = np.array([*list(radius * np.ones(num_mic - 1)), 0.0])
+        theta_vec = np.array([*list(np.linspace(0, 2 * np.pi, num_mic - 1)), 0.0])
+        super().__init__(r_vec=r_vec, theta_vec=theta_vec, speed=speed)
+
+
 class LinearArray(ArrayGeometry):
     def __init__(self, spacing: float, num_mic: int, speed: float = 340):
         """
