@@ -12,7 +12,15 @@ import numpy as np
 from scipy.signal import find_peaks
 
 
-class IAFSpikeEncoder:
+class SpikeEncoder:
+    def __init__(self):
+        pass
+
+    def evolve(self, sig_in: np.ndarray)->np.ndarray:
+        raise NotImplementedError("this methods needs to be implemented in various spike encoders!")
+
+
+class IAFSpikeEncoder(SpikeEncoder):
     def __init__(self, target_spike_rate: float, fs: float):
         """
         this class builds an IAF spike encoder for multi-mic signals.
@@ -79,7 +87,7 @@ class IAFZeroCrossingSpikeEncoder:
 
 
 
-class ZeroCrossingSpikeEncoder:
+class ZeroCrossingSpikeEncoder(SpikeEncoder):
     def __init__(self, fs: float, robust_width: int = 1):
         """
         this class builds a robust spike encoder for multi-mic signals.
@@ -108,7 +116,7 @@ class ZeroCrossingSpikeEncoder:
         return spikes.T
 
 
-class PeakSpikeEncoder:
+class PeakSpikeEncoder(SpikeEncoder):
     def __init__(self, fs: float):
         """
         this class builds a robust spike encoder for multi-mic signals.
