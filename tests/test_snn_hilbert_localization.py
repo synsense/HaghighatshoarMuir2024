@@ -79,11 +79,17 @@ def test_array_resolution():
     signal_dict["chirp"] = sig_temp
 
     # 2. use an angular grid
-    num_grid = 32 * num_mic + 1
+    num_grid = 64 * num_mic + 1
     doa_list = np.linspace(-np.pi, np.pi, num_grid)
 
     sig_temp = signal_dict["filtered_noise"]
     bf_mat = beamf.design_from_template(template=(time_temp, sig_temp), doa_list=doa_list)
+
+    # obtain the complex vesrion of the beamforming vectors
+    # NOTE: this is needed to obtain a better illustration of the beam pattern
+
+    bf_mat_comp = bf_mat[:num_mic, :] + 1j * bf_mat[num_mic:, :]
+
 
     # apply the beamforming matrices to signal samples
     rand_index = int(np.random.rand(1)[0] * len(doa_list))
@@ -98,7 +104,9 @@ def test_array_resolution():
     sig_power /= np.max(sig_power)
 
     # plot the array resolution
-    corr = np.abs(bf_mat.conj().T @ bf_mat)
+    # NOTE: we need the complex version of the beam pattern
+    # corr = np.abs(bf_mat.conj().T @ bf_mat)
+    corr = np.abs(bf_mat_comp.conj().T @ bf_mat_comp)
 
     selected_indices = np.arange(0, len(corr), len(corr) // 4)
     plt.figure()
@@ -217,7 +225,6 @@ def test_moving_target():
 
     bf_mat = beamf.design_from_template(template=(time_temp, sig_temp), doa_list=doa_list)
 
-
     # use the beamforming matrix for tracking a moving target
     snr_db = 100
     freq_ratio = 1.0
@@ -285,9 +292,9 @@ def test_moving_target():
 
 
 def main():
-    # test_array_resolution()
+    test_array_resolution()
     # test_fixed_target()
-    test_moving_target()
+    # test_moving_target()
 
 
 if __name__ == '__main__':
