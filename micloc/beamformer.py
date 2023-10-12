@@ -88,7 +88,7 @@ class Beamformer:
             sig_in_vec = np.asarray(sig_in_vec)
 
             # compute the Hilbert transform
-            sig_in_vec_h = sig_in_vec + 1j * lfilter(self.kernel, [1], sig_in_vec, axis=1)
+            sig_in_vec_h = np.roll(sig_in_vec, len(self.kernel)//2, axis=1) + 1j * lfilter(self.kernel, [1], sig_in_vec, axis=1)
 
             # now that the input signals in all arrays are available, design the beamformer
             # 1. remove the transient part
@@ -105,6 +105,78 @@ class Beamformer:
         bf_mat = np.asarray(bf_mat).T
 
         return bf_mat
+
+
+
+    def design_from_template_high_rank(self, template: Tuple[np.ndarray, np.ndarray], doa_list: np.ndarray, rank:int = 1) -> np.ndarray:
+        """
+        this function builds suitable beamforming matrices for the array when it receives a given waveform.
+        Args:
+            template (Tuple[np.ndarray, np.ndarray]): a tuple containing the template signal (time_temp, sig_temp).
+            doa_list (np.ndarray): a list containing target DoAs for which the beamforming is designed.
+            rank(int): rank of the subspace used for beamforming. Defaults to 1.
+        Returns:
+            a matrix containing beamforming vectors for various DoAs.
+
+        """
+        # extract the signal
+        try:
+            time_temp, sig_temp = template
+        except Exception:
+            raise ValueError("input template should be a tuple containing (time_in, sig_in) of the template signal!")
+
+        # resample the signal to the clock rate of the array
+        time_interp = np.arange(time_temp.min(), time_temp.max(), step=1 / self.fs)
+        sig_interp = np.interp(time_interp, time_temp, sig_temp)
+
+        sig_temp, time_temp = sig_interp, time_interp
+
+        # matrix containing dominant directions in its colums
+        bf_mat = []
+        C_mat = []
+
+        print()
+        print('+'*150)
+        print(" designing beamforming matrices for various DoAs ".center(150, '+'))
+        print('+' * 150)
+
+        for doa in tqdm(doa_list):
+            # compute the delays associated with the DoA
+            delays = self.geometry.delays(
+                theta=doa,
+                normalized=True
+            )
+
+            # interpolate the input signal with the given delay values
+            sig_in_vec = []
+
+            for delay in delays:
+                time_delay = time_temp - delay
+                time_delay[time_delay < time_temp.min()] = time_temp.min()
+
+                sig_in = np.interp(time_delay, time_temp, sig_temp)
+
+                sig_in_vec.append(sig_in)
+
+            sig_in_vec = np.asarray(sig_in_vec)
+
+            # compute the Hilbert transform
+            sig_in_vec_h = np.roll(sig_in_vec, len(self.kernel)//2, axis=1) + 1j * lfilter(self.kernel, [1], sig_in_vec, axis=1)
+
+            # now that the input signals in all arrays are available, design the beamformer
+            # 1. remove the transient part
+            stable_part = min([len(self.kernel), sig_in_vec_h.shape[1]//2])
+            sig_in_vec_h_stable = sig_in_vec_h[:, stable_part:]
+
+            # 2. compute the covariance matrix
+            cov_mat = 1 / sig_in_vec_h_stable.shape[1] * (sig_in_vec_h_stable @ sig_in_vec_h_stable.conj().T)
+
+            U, D, _ = np.linalg.svd(cov_mat)
+
+            bf_mat.append(U[:, :rank])
+            C_mat.append(cov_mat)
+
+        return bf_mat, C_mat
 
     def apply_to_template(self, bf_mat: np.ndarray, template: Tuple[np.ndarray, np.ndarray, Union[Number, np.ndarray]], snr_db:float) -> np.ndarray:
         """

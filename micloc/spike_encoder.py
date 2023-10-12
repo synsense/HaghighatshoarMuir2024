@@ -113,6 +113,9 @@ class ZeroCrossingSpikeEncoder(SpikeEncoder):
             peaks, _ = find_peaks(np.cumsum(sig_chan), distance=self.robust_width)
             spikes[chan, peaks] = 1
 
+            valleys, _ = find_peaks(-np.cumsum(sig_chan), distance=self.robust_width)
+            spikes[chan, valleys] = -1
+
         return spikes.T
 
 
@@ -140,6 +143,8 @@ class PeakSpikeEncoder(SpikeEncoder):
         for chan, sig_chan in enumerate(sig_in.T):
             peaks, _ = find_peaks(sig_chan, distance=robust_width)
             spikes[chan, peaks] = 1
+
+
 
         return spikes.T
 

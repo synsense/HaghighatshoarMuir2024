@@ -149,7 +149,7 @@ class SNNBeamformer:
             stable_part = vmem_vec.shape[0] // 4
             vmem_stable = vmem_vec[stable_part:, :]
 
-            vmem_stable -= vmem_stable.mean(axis=0).reshape(1,-1)
+            # vmem_stable -= vmem_stable.mean(axis=0).reshape(1,-1)
 
             # 2. compute the covariance matrix
             cov_mat = 1 / vmem_stable.shape[0] * (vmem_stable.T @ vmem_stable)
@@ -161,6 +161,21 @@ class SNNBeamformer:
 
             # U, _, _ = np.linalg.svd(cov_mat)
             # bf_vec = U[:,0]
+
+            # another method
+            # build conjugate mode
+            C = 1/vmem_stable.shape[0] * (vmem_stable.T @vmem_stable)
+
+            dim_comp = C.shape[0]//2
+            C_comp_diag = (C[:dim_comp,:dim_comp] + C[dim_comp:, dim_comp:])/2
+            C_comp_off = (C[:dim_comp, dim_comp:] + C[dim_comp:, :dim_comp].T)/2
+
+            C_comp = C_comp_diag + 1j * C_comp_off
+
+            U, D, _ = np.linalg.svd(C_comp)
+
+
+            bf_vec = np.concatenate([np.real(U[:,0]), np.imag(U[:,0])])
 
             bf_mat.append(bf_vec)
 
