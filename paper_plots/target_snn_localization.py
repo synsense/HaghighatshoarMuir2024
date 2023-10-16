@@ -82,7 +82,7 @@ def test_fixed_target():
     # build the corresponding beamformer
     kernel_duration = 10.0e-3
 
-    tau_mem = 1 / (2 * np.pi * freq_design)
+    tau_mem = 0.3 / (2 * np.pi * freq_design)
     tau_syn = tau_mem
     tau_vec = np.asarray([tau_syn, tau_mem])
 
@@ -103,8 +103,15 @@ def test_fixed_target():
 
     sig_temp = np.sin(phase_inst)
 
+    # change to random signal
+    # order = 2
+    # cutoff = freq_range
+    # b, a = butter(order, cutoff, output="ba", analog=False, btype="pass", fs=fs)
+    # noise = np.random.randn(len(time_temp))
+    # sig_temp = lfilter(b, a, noise)
+
     # 2. use an angular grid
-    num_grid = 64 * num_mic + 1
+    num_grid = 8 * num_mic + 1
     doa_list = np.linspace(-np.pi, np.pi, num_grid)
 
     bf_mat = beamf.design_from_template(template=(time_temp, sig_temp), doa_list=doa_list)
@@ -122,7 +129,7 @@ def test_fixed_target():
     snr_db_vec = [-10, 0, 10, 20]
     plt.figure()
 
-    filename = os.path.join(dir_name, "fixed_target_beam.pgf")
+    filename_beam = os.path.join(dir_name, "fixed_target_beam.pgf")
 
     for snr_db in snr_db_vec:
         # modify SNR to take bandwidth into account
@@ -131,7 +138,7 @@ def test_fixed_target():
                                          snr_db=snr_db_bandwidth)
 
         # compute power
-        power = np.mean(np.abs(sig_bf) ** 2, axis=1)
+        power = np.mean(np.abs(sig_bf) ** 2, axis=0)
         power /= power.max()
 
         plt.plot(doa_list / np.pi * 180, 10 * np.log10(power), label=f"snr: {snr_db} dB")
@@ -146,14 +153,15 @@ def test_fixed_target():
     plt.axvline(x=doa_target * 180 / np.pi, color="r", label="target DoA")
 
     if SAVE_PLOTS:
-        plt.savefig(filename)
+        plt.savefig(filename_beam)
     else:
         plt.draw()
 
     # apply statistical analysis of the precision of DoA estimation
-    snr_db_vec = np.linspace(-10, 10, 20)
+    filename_stat = os.path.join(dir_name, "fixed_target_err.pgf")
+    snr_db_vec = np.linspace(-10, 10, 40)
     angle_err = []
-    num_sim = 300
+    num_sim = 100
 
     test_duration = 100e-3
     time_test = np.arange(0, test_duration, step=1 / fs)
@@ -175,7 +183,7 @@ def test_fixed_target():
                                              snr_db=snr_db_target)
 
             # power after beamforming
-            power = np.mean(np.abs(sig_bf) ** 2, axis=1)
+            power = np.mean(np.abs(sig_bf) ** 2, axis=0)
 
             doa_target_est = doa_list[np.argmax(power)]
 
@@ -201,7 +209,7 @@ def test_fixed_target():
     if not SAVE_PLOTS:
         plt.draw()
     else:
-        plt.savefig(filename)
+        plt.savefig(filename_stat)
 
     if not SAVE_PLOTS:
         plt.show()
@@ -217,7 +225,7 @@ def test_moving_target():
     fs = 48_000
 
     freq_design = 2_000
-    freq_range = [0.5 * freq_design, freq_design]
+    freq_range = [0.9 * freq_design, freq_design]
 
     geometry = CenterCircularArray(radius=radius, num_mic=num_mic)
 
@@ -240,7 +248,7 @@ def test_moving_target():
     # build a chirp signal
     f_min, f_max = freq_range
     period = time_temp[-1]
-    freq_inst = f_min + (f_max - f_min) * (time_temp % pariod) / period
+    freq_inst = f_min + (f_max - f_min) * (time_temp % period) / period
     phase_inst = np.cumsum(freq_inst) * 1 / fs
 
     sig_temp = np.sin(phase_inst)
@@ -258,10 +266,14 @@ def test_moving_target():
 
     duration_test = 5000e-3
     time_test = np.arange(0, duration_test, step=1 / fs)
-    sig_test = sig_temp
 
-    doa_max = np.pi * 0.9
-    num_period = 0.4
+    # a chirp signal
+    freq_inst = f_min + (f_max - f_min) * (time_test % period) / period
+    phase_inst = 2 * np.pi * np.cumsum(freq_inst) * 1 / fs
+    sig_test = np.sin(phase_inst)
+
+    doa_max = np.pi * 0.5
+    num_period = 0.5
     doa_test = doa_max * np.sin(num_period * np.pi / duration_test * time_test)
 
     sig_bf = beamf.apply_to_template(bf_mat=bf_mat, template=(time_test, sig_test, doa_test), snr_db=snr_db)
@@ -271,34 +283,24 @@ def test_moving_target():
     fall_time = 100e-3
     env = Envelope(rise_time=rise_time, fall_time=fall_time, fs=fs)
 
-    sig_bf_env = env.evolve(sig_bf.T).T
+    # detect DoA based on signal envelop
+    sig_bf_env = env.evolve(sig_bf)
+
+    # detect DoA based on energy eccumulation
+    acc_win_size = int(fs * rise_time)
+    sig_acc = np.diff(np.cumsum(np.abs(sig_bf), axis=0)[::acc_win_size,:], axis=0)
+
 
     # compute the estimated DoA
-    doa_index = np.argmax(sig_bf_env, axis=0)
+    doa_index = np.argmax(sig_bf_env, axis=1)
     doa_est = doa_list[doa_index]
 
-    # fall_freq = 1/(2*np.pi*fall_time)
-    # order = 2
-    # cut_off = fall_freq
-    # b, a = butter(order, cut_off, btype="low", output="ba", analog=False, fs=fs)
-    # doa_est = lfilter(b, a, doa_est)
-
-    rel_err = np.sqrt(
-        np.median((doa_est - doa_test[:len(doa_est)]) ** 2) / (
-            np.sqrt(np.median(doa_est ** 2) * np.median(doa_test ** 2))))
-    angle_err = (doa_est - doa_test[:len(doa_est)]) * 180 / np.pi
-
-    med_err = np.median(np.abs(angle_err))
-
     plt.figure(figsize=(16, 10))
-
-    plt.subplot(211)
     plt.plot(time_test, doa_est[:len(time_test)] * 180 / np.pi, label="estimated")
     plt.plot(time_test + kernel_duration, doa_test * 180 / np.pi, label="true")
-    plt.ylim([doa_list[0] * 180 / np.pi, doa_list[-1] * 180 / np.pi])
+    # plt.ylim([doa_list[0] * 180 / np.pi, doa_list[-1] * 180 / np.pi])
     plt.title(
         f"tracking a moving target: radius:{radius:0.3f}m, num-mic:{num_mic}\n" + \
-        f"rel-err:{rel_err:0.5f}, med-err:{med_err:0.2f} deg\n" + \
         f"freq-design:{int(freq_design)}, freq-test:{int(freq_test)}, ker-H duration:{1000 * kernel_duration:0.1f} ms, num-samples:{int(kernel_duration * fs)}"
     )
     plt.legend()
@@ -306,21 +308,12 @@ def test_moving_target():
     plt.ylabel("DoA")
     plt.grid(True)
 
-    plt.subplot(212)
-    plt.plot(np.sort(angle_err), 1 - np.linspace(0, 1, len(angle_err)))
-    plt.grid(True)
-    doa_resolution = np.diff(doa_list)[0]
-    doa_range = 8 * doa_resolution * 180 / np.pi
-    plt.xlim([-doa_range, doa_range])
-    plt.xlabel(f"angle deg [median of error {med_err:0.2f} deg]")
-    plt.ylabel("CDF of error")
-
     plt.show()
 
 
 def main():
-    test_fixed_target()
-    # test_moving_target()
+    # test_fixed_target()
+    test_moving_target()
 
 
 if __name__ == '__main__':

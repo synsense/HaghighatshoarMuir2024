@@ -1,7 +1,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # This module builds a simple visualization demo for multi-mic devkit.
 #
-# Note: in this version, we are using the conventional beamforming based on the original signal.
+# Note: in this version, we are using the final SNN version for target localization.
 #
 #
 # (C) Saeid Haghighatshoar
@@ -13,7 +13,7 @@
 from archive.record import AudioRecorder
 from micloc.visualizer import Visualizer
 
-from micloc.beamformer import Beamformer
+from micloc.snn_beamformer import SNNBeamformer
 from micloc.array_geometry import ArrayGeometry, CenterCircularArray
 from micloc.filterbank import ButterworthFilterbank
 import numpy as np
@@ -23,7 +23,7 @@ class Demo:
     def __init__(self, geometry: ArrayGeometry, freq_bands: np.ndarray, doa_list: np.ndarray, recording_duration: float,
                  kernel_duration: float, fs: float):
         """
-        this module builds an beamformer based localization demo.
+        this module builds an SNN beamformer based localization demo.
         Args:
             geometry (ArrayGeometry): geometry of the array.
             freq_bands (np.ndarray): an array of dimension C x 2 whose rows specify the frequency range of the signal processed by the array in various frequency channels.
@@ -50,20 +50,25 @@ class Demo:
             # use the center frequency as the reference frequency
             freq_mid = np.mean(freq_range)
 
+            # time constants
+            tau_mem = 1/(2*np.pi*freq_mid)
+            tau_syn = tau_mem
+            tau_vec = [tau_syn, tau_mem]
+
             # build SNN beamforming module
-            beamf = Beamformer(geometry=geometry, kernel_duration=kernel_duration, freq_range=freq_range, fs=fs)
+            beamf = SNNBeamformer(geometry=geometry, kernel_duration=kernel_duration, freq_range=freq_range, tau_vec=tau_vec, fs=fs)
             self.beamfs.append(beamf)
 
             # build the template signal and design bemforming vectors
             time_temp = np.arange(0, recording_duration, step=1/fs)
             sig_temp = np.sin(2*np.pi*freq_mid * time_temp)
 
-            bf_vecs, _ = beamf.design_from_template(template=(time_temp, sig_temp), doa_list=doa_list)
+            bf_vecs = beamf.design_from_template(template=(time_temp, sig_temp), doa_list=doa_list)
 
             self.bf_mats.append(bf_vecs)
 
         # build a filterbank for various frequency bands covered by the array
-        order = 2
+        order = 1
         self.filterbank = ButterworthFilterbank(freq_bands=freq_bands, order=order, fs=fs)
 
         self.doa_list = np.asarray(doa_list)
@@ -145,7 +150,7 @@ class Demo:
 
                 for data_filt_chan, bf_mat_chan, beamf_module in zip(data_filt, self.bf_mats, self.beamfs):
                     # compute the beamformed signal in each frequency channel separately
-                    data_bf_chan = beamf_module.apply_to_signal(bf_mat=bf_mat_chan, sig_in=data_filt_chan)
+                    data_bf_chan = beamf_module.apply_to_signal(bf_mat=bf_mat_chan, sig_in_vec=(time_vec, data_filt_chan))
 
                     # compute the power vs. DoA (power spectrum) after beamforming
                     power_grid_chan = np.mean(np.abs(data_bf_chan) ** 2, axis=0)
@@ -172,6 +177,7 @@ def test_demo():
     freq_bands = [
         [1600, 2400],
     ]
+
 
     # grid of DoAs
     num_grid = 16 * num_mic

@@ -19,7 +19,8 @@ import matplotlib.pyplot as plt
 
 
 class SNNBeamformer:
-    def __init__(self, geometry: ArrayGeometry, kernel_duration: np.ndarray, freq_range: np.ndarray, tau_vec: np.ndarray,
+    def __init__(self, geometry: ArrayGeometry, kernel_duration: np.ndarray, freq_range: np.ndarray,
+                 tau_vec: np.ndarray,
                  fs: float):
         """
         this class implements an algorithm for building beamforming matrices in multi-mic arrays when the input is spiky.
@@ -60,7 +61,7 @@ class SNNBeamformer:
         # distance between two consecutive zero crossing
         zc_dist = int(fs / f_high)
         robust_width = zc_dist // 2
-        self.spk_encoder = ZeroCrossingSpikeEncoder(fs=self.fs, robust_width=robust_width)
+        self.spk_encoder = ZeroCrossingSpikeEncoder(fs=self.fs, robust_width=robust_width, bipolar=True)
 
     def design_from_template(self, template: Tuple[np.ndarray, np.ndarray], doa_list: np.ndarray) -> np.ndarray:
         """
@@ -128,16 +129,15 @@ class SNNBeamformer:
 
             # compute the in-phase and quadrature parts
             # NOTE: here we are shifting the in-phase part in time to take into account the delay due to STHT filter
-            sig_in_vec_h = np.roll(sig_in_vec, self.kernel_length // 2, axis=0) + 1j * lfilter(self.kernel, [1],
-                                                                                               sig_in_vec, axis=0)
+            sig_in_vec_h = np.roll(sig_in_vec, self.kernel_length // 2, axis=0) + 1j * lfilter(self.kernel, [1], sig_in_vec, axis=0)
 
             # remove the low-pass part of the signal so that STHT works well
             b, a = self.bandpass_filter
-            sig_in_vec_h_bp = lfilter(b, a, sig_in_vec_h, axis=0)
+            sig_in_vec_h = lfilter(b, a, sig_in_vec_h, axis=0)
 
             # obtain the real-valued version of the signal
             # dim: `T x 2 num_chan`
-            sig_in_real = np.hstack([np.real(sig_in_vec_h_bp), np.imag(sig_in_vec_h_bp)])
+            sig_in_real = np.hstack([np.real(sig_in_vec_h), np.imag(sig_in_vec_h)])
 
             # obtain the spike encoding
             spikes_vec = self.spk_encoder.evolve(sig_in_real)
@@ -152,30 +152,19 @@ class SNNBeamformer:
             # vmem_stable -= vmem_stable.mean(axis=0).reshape(1,-1)
 
             # 2. compute the covariance matrix
-            cov_mat = 1 / vmem_stable.shape[0] * (vmem_stable.T @ vmem_stable)
+            C = 1 / vmem_stable.shape[0] * (vmem_stable.T @ vmem_stable)
 
-            # pick a single dominant singular vector for beamforming
-            # due to positivity of spikes and neuron impulse responses we need to find a dominant singular vector that is
-            # orthogonal to all-1 vector
-            bf_vec = self._find_dc_removed_sing_vec(cov_mat)
-
-            # U, _, _ = np.linalg.svd(cov_mat)
-            # bf_vec = U[:,0]
-
-            # another method
-            # build conjugate mode
-            C = 1/vmem_stable.shape[0] * (vmem_stable.T @vmem_stable)
-
-            dim_comp = C.shape[0]//2
-            C_comp_diag = (C[:dim_comp,:dim_comp] + C[dim_comp:, dim_comp:])/2
-            C_comp_off = (C[:dim_comp, dim_comp:] + C[dim_comp:, :dim_comp].T)/2
+            # arrange the covariance matrix in complex format so that the resulting beamforming vectors are
+            # complex rotation invariant as needed for beamforming applications
+            dim_comp = C.shape[0] // 2
+            C_comp_diag = (C[:dim_comp, :dim_comp] + C[dim_comp:, dim_comp:]) / 2
+            C_comp_off = (C[:dim_comp, dim_comp:] + C[dim_comp:, :dim_comp].T) / 2
 
             C_comp = C_comp_diag + 1j * C_comp_off
 
             U, D, _ = np.linalg.svd(C_comp)
 
-
-            bf_vec = np.concatenate([np.real(U[:,0]), np.imag(U[:,0])])
+            bf_vec = np.concatenate([np.real(U[:, 0]), np.imag(U[:, 0])])
 
             bf_mat.append(bf_vec)
 
@@ -252,7 +241,7 @@ class SNNBeamformer:
         time_vec, sig_in_vec = sig_in_vec
 
         twice_num_mic, num_grid = bf_mat.shape
-        num_mic = twice_num_mic//2
+        num_mic = twice_num_mic // 2
 
         T, num_chan = sig_in_vec.shape
 
@@ -261,13 +250,14 @@ class SNNBeamformer:
                 f"number of channels in the input siganl {num_chan} should be the same as the number of microphones {num_mic}!")
 
         # check the time and if not sampled properly resample the signal
-        if not np.allclose(np.diff(time_vec), 1/self.fs):
-            time_vec_new = np.arange(time_vec[0], time_vec[-1], step=1/self.fs)
+        if not np.allclose(np.diff(time_vec), 1 / self.fs):
+            time_vec_new = np.arange(time_vec[0], time_vec[-1], step=1 / self.fs)
 
-            time_vec_all = np.repeat(time_vec.reshape(1,-1), num_mic, axis=0)
-            time_vec_new_all = np.repeat(time_vec_new.reshape(1,-1), num_mic, axis=0)
+            time_vec_all = np.repeat(time_vec.reshape(1, -1), num_mic, axis=0)
+            time_vec_new_all = np.repeat(time_vec_new.reshape(1, -1), num_mic, axis=0)
 
-            sig_in_vec_resampled = np.interp(time_vec_new_all.ravel(), time_vec_all.ravel(), sig_in_vec.ravel()).reshape(-1, num_mic)
+            sig_in_vec_resampled = np.interp(time_vec_new_all.ravel(), time_vec_all.ravel(),
+                                             sig_in_vec.ravel()).reshape(-1, num_mic)
 
             # replace the original signal
             sig_in_vec = sig_in_vec_resampled
@@ -280,16 +270,16 @@ class SNNBeamformer:
 
         # remove the low-pass part of the signal so that STHT works well
         b, a = self.bandpass_filter
-        sig_in_vec_h_bp = lfilter(b, a, sig_in_vec_h, axis=0)
+        sig_in_vec_h = lfilter(b, a, sig_in_vec_h, axis=0)
 
         # obtain the real-valued version of the signal
         # dim: `T x 2 num_mic`
-        sig_in_real = np.hstack([np.real(sig_in_vec_h_bp), np.imag(sig_in_vec_h_bp)])
+        sig_in_real = np.hstack([np.real(sig_in_vec_h), np.imag(sig_in_vec_h)])
 
         # obtain the spike encoding
         spikes_vec = self.spk_encoder.evolve(sig_in_real)
 
-        ## compute the filtered version after being processed by the neuron
+        # compute the filtered version after being processed by the neuron
         # build the neuron kernel
         tau_syn, tau_mem = self.tau_vec[0], self.tau_vec[1]
         time_neuron = time_vec - time_vec[0]
@@ -311,7 +301,8 @@ class SNNBeamformer:
         vmem_vec = lfilter(neuron_impulse_response, [1], spikes_vec, axis=0)
 
         # apply beamforming to the final real-valued signal
-        vmem_vec_beamformed = bf_mat.T @ vmem_vec.T
+        # resulting signal of dimension `T x num_grid`
+        vmem_vec_beamformed = vmem_vec @ bf_mat
 
         return vmem_vec_beamformed
 

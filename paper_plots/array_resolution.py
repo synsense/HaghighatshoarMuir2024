@@ -6,7 +6,7 @@
 # email: saeid.haghighatshoar@synsense.ai
 #
 #
-# last update: 30.08.2023
+# last update: 16.10.2023
 # ----------------------------------------------------------------------------------------------------------------------
 import numpy as np
 
@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import matplotlib
 from scipy.signal import lfilter, butter
+from scipy.linalg import eigh
 import os
 from pathlib import Path
 from tqdm import tqdm
@@ -31,7 +32,8 @@ def use_latex():
         'pgf.rcfonts': False,
     })
 
-SAVE_PLOTS = True
+
+SAVE_PLOTS = False
 
 if SAVE_PLOTS:
     use_latex()
@@ -40,6 +42,7 @@ if SAVE_PLOTS:
 def array_resolution_sin():
     """
     this function computes the array resolution curve at various angle via direct numerical simulation.
+    the template signals used for localization are sinusoids.
     """
     # find the directory for this file
     root = os.path.join(Path(__file__).resolve().parent, "array_resolution_sin")
@@ -56,7 +59,7 @@ def array_resolution_sin():
 
     # build the corresponding beamformer
     kernel_duration = 10e-3
-    beamf = Beamformer(geometry=geometry, kernel_duration=kernel_duration, fs=fs)
+
 
     # build beamformer matrix for various DoAs
     # 1. build a template signal
@@ -68,14 +71,30 @@ def array_resolution_sin():
 
         filename = os.path.join(root, f"array_resolution_sin_freq={freq_design}.pgf")
 
+        freq_range = [0.8*freq_design, 1.2 * freq_design]
+        beamf = Beamformer(geometry=geometry, kernel_duration=kernel_duration, freq_range=freq_range, fs=fs)
+
         time_temp = np.arange(0, duration, step=1 / fs)
         sig_temp = np.sin(2 * np.pi * freq_design * time_temp)
 
         # 2. use an angular grid
-        num_grid = 16 * num_mic + 1
+        num_grid = 32 * num_mic + 1
         doa_list = np.linspace(-np.pi, np.pi, num_grid)
 
-        bf_mat = beamf.design_from_template(template=(time_temp, sig_temp), doa_list=doa_list)
+        interference_removal = False
+        bf_mat, cov_mat_list = beamf.design_from_template(template=(time_temp, sig_temp), doa_list=doa_list,
+                                                          interference_removal=interference_removal)
+
+        # a specific DoA
+        angle_index = num_grid // 2
+        bf_vec = bf_mat[:, angle_index]
+
+        # two different beam patterns considering the covariance matrices of the signals received
+        beam_pattern_best = np.asarray([np.abs(bf_vec.conj().T @ cov_mat @ bf_vec) for cov_mat in cov_mat_list])
+        beam_pattern_best = beam_pattern_best / beam_pattern_best.max()
+
+        beam_pattern_worst = np.abs(bf_vec.conj().T @ bf_mat)
+        beam_pattern_worst = beam_pattern_worst / beam_pattern_worst.max()
 
         # plot the array resolution
         corr = np.abs(bf_mat.conj().T @ bf_mat)
@@ -85,7 +104,9 @@ def array_resolution_sin():
         ax1 = plt.subplot(gs[0], polar=True)
         ax2 = plt.subplot(gs[1], polar=False)
 
-        ax1.plot(doa_list, np.abs(corr[len(corr) // 2]), label="beam pattern")
+        # ax1.plot(doa_list, np.abs(corr[len(corr) // 2]), label="beam pattern")
+        # ax1.plot(doa_list, beam_pattern_best)
+        ax1.plot(doa_list, beam_pattern_worst, label="beam pattern")
         ax1.set_title(
             f"array resolution: freq= {freq_design / 1000:0.1f} KHz, ker-duration: {int(1000 * kernel_duration)} ms")
         ax1.grid(True)
@@ -126,7 +147,6 @@ def array_resolution_wideband():
 
     # build the corresponding beamformer
     kernel_duration = 10e-3
-    beamf = Beamformer(geometry=geometry, kernel_duration=kernel_duration, fs=fs)
 
     # minimum frequency for which STHT can works
     f_min = 10 / kernel_duration
@@ -142,7 +162,8 @@ def array_resolution_wideband():
 
         # frequency range of the array
         # freq_range = [f_min, f_min + bandwidth]
-        freq_range = [center_freq - bandwidth/2, center_freq + bandwidth/2]
+        freq_range = [center_freq - bandwidth / 2, center_freq + bandwidth / 2]
+        beamf = Beamformer(geometry=geometry, kernel_duration=kernel_duration, freq_range=freq_range, fs=fs)
 
         # build a filter for the array
         # butterworth filter parameters
@@ -160,7 +181,7 @@ def array_resolution_wideband():
         num_grid = 16 * num_mic + 1
         doa_list = np.linspace(-np.pi, np.pi, num_grid)
 
-        bf_mat = beamf.design_from_template(template=(time_temp, sig_temp), doa_list=doa_list)
+        bf_mat, _ = beamf.design_from_template(template=(time_temp, sig_temp), doa_list=doa_list)
 
         # plot the array resolution
         corr = np.abs(bf_mat.conj().T @ bf_mat)
@@ -172,7 +193,7 @@ def array_resolution_wideband():
 
         ax1.plot(doa_list, np.abs(corr[len(corr) // 2]), label="beam pattern")
         ax1.set_title(
-            fr"array resolution: $f_c$: {center_freq/1000:0.1f} KHz, B: {bandwidth / 1000:0.1f} KHz, ker-duration: {int(1000 * kernel_duration)} ms")
+            fr"array resolution: $f_c$: {center_freq / 1000:0.1f} KHz, B: {bandwidth / 1000:0.1f} KHz, ker-duration: {int(1000 * kernel_duration)} ms")
         ax1.grid(True)
 
         selected_indices = np.arange(0, len(corr), len(corr) // 4)
@@ -193,7 +214,7 @@ def array_resolution_wideband():
 
 
 def main():
-    array_resolution_sin()
+    # array_resolution_sin()
     array_resolution_wideband()
 
 

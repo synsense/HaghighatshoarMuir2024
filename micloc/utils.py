@@ -1,12 +1,12 @@
 # ----------------------------------------------------------------------------------------------------------------------
-# This module implements several utility functions for beamforming.
+# This module implements several utility functions used in beamforming and localization.
 #
 #
 # (C) Saeid Haghighatshoar
 # email: saeid.haghighatshoar@synsense.ai
 #
 #
-# last update: 05.07.2023
+# last update: 16.10.2023
 # ----------------------------------------------------------------------------------------------------------------------
 import numpy as np
 import warnings
@@ -32,6 +32,17 @@ class Envelope:
         self.win_lens = np.asarray([int(fs * fall_time), int(fs * rise_time)])
 
     def evolve(self, sig_in: np.ndarray) -> np.ndarray:
+        """
+        this module computes and tracks the envelope of the signal across various channels which allows to do
+        a robust estimation of active channels.
+
+        Args:
+            sig_in (np.ndarray): input signal of dimension `T x num_chan`.
+
+        Returns:
+            np.ndarray: array containing extracted envelopes in channels.
+        """
+
         T, channel = sig_in.shape
 
         if T < channel:

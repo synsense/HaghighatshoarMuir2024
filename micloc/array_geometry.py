@@ -1,20 +1,20 @@
 # ----------------------------------------------------------------------------------------------------------------------
-# This module implements a localization method for multi-mic data based on Hilbert transform.
-#
+# This module allows to model the effect of propagation in the environment using array geometry.
 #
 # (C) Saeid Haghighatshoar
 # email: saeid.haghighatshoar@synsense.ai
 #
 #
-# last update: 05.07.2023
+# last update: 12.10.2023
 # ----------------------------------------------------------------------------------------------------------------------
 
 import numpy as np
 from scipy.signal import lfilter, butter
 
+SOUND_SPEED_IN_OPEN_AIR = 340
 
 class ArrayGeometry:
-    def __init__(self, r_vec: np.ndarray, theta_vec: np.ndarray, speed: float = 340):
+    def __init__(self, r_vec: np.ndarray, theta_vec: np.ndarray, speed: float = SOUND_SPEED_IN_OPEN_AIR):
         """
         class for encoding the array geometry in terms of delays at various DoAs.
         Args:
@@ -31,10 +31,12 @@ class ArrayGeometry:
 
     def delays(self, theta: float, normalized: bool = True) -> np.ndarray:
         """
-        this function returns the relative delay of array elements for a wave with DoA `angle`.
+        this function returns the relative delay of array elements for a wave with DoA `theta`.
         Args:
             theta (float): DoA of the incoming wave.
             normalized (bool, optional): a flag showing if the delays are normalized to start from 0.
+            NOTE: this may be good to avoid shifting all signal samples. But should be avoided if some comparison between
+            various DoAs is made since in that case this normalization creates issues.
 
         Returns:
             an array containing the delays of the array elements
@@ -48,7 +50,7 @@ class ArrayGeometry:
 
 
 class CircularArray(ArrayGeometry):
-    def __init__(self, radius: float, num_mic: int, speed: float = 340):
+    def __init__(self, radius: float, num_mic: int, speed: float = SOUND_SPEED_IN_OPEN_AIR):
         """
         class encoding the geometry of a circular array.
         Args:
@@ -63,9 +65,9 @@ class CircularArray(ArrayGeometry):
 
 
 class CenterCircularArray(ArrayGeometry):
-    def __init__(self, radius: float, num_mic: int, speed: float = 340):
+    def __init__(self, radius: float, num_mic: int, speed: float = SOUND_SPEED_IN_OPEN_AIR):
         """
-        class encoding the geometry of a circular array which has a microphone in the center.
+        class encoding the geometry of a circular array which has one of microphones put at the center.
         Args:
             radius (float): radius of the array.
             num_mic (int): number of microphones.
@@ -77,7 +79,7 @@ class CenterCircularArray(ArrayGeometry):
 
 
 class LinearArray(ArrayGeometry):
-    def __init__(self, spacing: float, num_mic: int, speed: float = 340):
+    def __init__(self, spacing: float, num_mic: int, speed: float = SOUND_SPEED_IN_OPEN_AIR):
         """
         class for encoding the array geometry for a linear array.
         Args:

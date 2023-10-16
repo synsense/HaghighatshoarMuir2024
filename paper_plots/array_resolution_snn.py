@@ -7,7 +7,7 @@
 # email: saeid.haghighatshoar@synsense.ai
 #
 #
-# last update: 26.09.2023
+# last update: 16.10.2023
 # ----------------------------------------------------------------------------------------------------------------------
 import numpy as np
 
@@ -32,7 +32,7 @@ def use_latex():
         'pgf.rcfonts': False,
     })
 
-SAVE_PLOTS = True
+SAVE_PLOTS = False
 
 if SAVE_PLOTS:
     use_latex()
@@ -218,7 +218,7 @@ def array_resolution_wideband():
 
 
 def main():
-    array_resolution_sin()
+    # array_resolution_sin()
     array_resolution_wideband()
 
 
