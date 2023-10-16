@@ -24,19 +24,73 @@ from tqdm import tqdm
 
 
 def use_latex():
-    matplotlib.use("pgf")
-    matplotlib.rcParams.update({
-        "pgf.texsystem": "xelatex",
-        'font.family': 'serif',
-        'text.usetex': True,
-        'pgf.rcfonts': False,
-    })
+    matplotlib.use("pdf")
+    matplotlib.rcParams.update(
+        {
+            "axes.spines.right": False,
+            "axes.spines.top": False,
+            "axes.linewidth": 0.5,
+            "lines.linewidth": 1.0,
+            "grid.linewidth": 0.5,
+            'xtick.major.width': 0.5,
+            'ytick.major.width': 0.5,
+            'xtick.major.size': 2,
+            'ytick.major.size': 2,
+            #     "pgf.texsystem": "xelatex",
+            #     "font.family": "Helvetica",
+            #     "text.usetex": True,
+            #     "pgf.rcfonts": False,
+        }
+    )
+
+    SMALL_SIZE = 6
+    MEDIUM_SIZE = 8
+    BIGGER_SIZE = 10
+
+    plt.rc("font", size=SMALL_SIZE)  # controls default text sizes
+    plt.rc("axes", titlesize=SMALL_SIZE)  # fontsize of the axes title
+    plt.rc("axes", labelsize=SMALL_SIZE)  # fontsize of the x and y labels
+    plt.rc("xtick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
+    plt.rc("ytick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
+    plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
+    plt.rc("figure", titlesize=SMALL_SIZE)  # fontsize of the figure title
+
 
 
 SAVE_PLOTS = False
 
 if SAVE_PLOTS:
     use_latex()
+
+
+def plot_beampattern(doa_list, corr, title, filename):
+    mm = 1 / 25.4
+
+    plt.figure(figsize=[35 * mm, 35 * mm])
+    gs = gridspec.GridSpec(1, 1)
+    ax1 = plt.subplot(gs[0], polar=True)
+    # ax2 = plt.subplot(gs[1], polar=False)
+
+    ax1.plot(doa_list, np.abs(corr[len(corr) // 2]), label="beam pattern")
+    ax1.plot(doa_list, np.abs(corr[3 * len(corr) // 4]), label="beam pattern")
+    ax1.set_title(title)
+    ax1.grid(True)
+    ax1.set_xticks(np.arange(0 / 180 * np.pi, 360 / 180 * np.pi, 60 / 180 * np.pi))
+    ax1.set_yticks([0.25, 0.5, 0.75, 1.0])
+    ax1.set_yticklabels([])
+
+    # selected_indices = np.arange(0, len(corr), len(corr) // 4)
+    # selected_doa = doa_list[selected_indices]
+    # ax2.plot(doa_list / np.pi * 180, corr[selected_indices, :].T)
+    # ax2.legend([f"DoA: {int(rad / np.pi * 180)}" for rad in selected_doa])
+    # ax2.set_xlabel("DoA")
+    # ax2.set_ylabel("array resolution")
+    # ax2.grid(True)
+
+    if SAVE_PLOTS:
+        plt.savefig(filename, bbox_inches="tight", transparent=True)
+    else:
+        plt.draw()
 
 
 def array_resolution_sin():
@@ -64,12 +118,12 @@ def array_resolution_sin():
     # build beamformer matrix for various DoAs
     # 1. build a template signal
     duration = 0.4
-    freq_design_vec = [1000, 2000, 4000, 8000]
+    freq_design_vec = [1000, 2000, 3600, 4000, 8000]
 
     for freq_design in tqdm(freq_design_vec):
         print(f"\n\nplotting beam pattern for freq: {freq_design}...")
 
-        filename = os.path.join(root, f"array_resolution_sin_freq={freq_design}.pgf")
+        filename = os.path.join(root, f"array_resolution_sin_freq={freq_design}.pdf")
 
         freq_range = [0.8*freq_design, 1.2 * freq_design]
         beamf = Beamformer(geometry=geometry, kernel_duration=kernel_duration, freq_range=freq_range, fs=fs)
@@ -155,7 +209,7 @@ def array_resolution_wideband():
     # 1. build a template signal
     duration = 0.4
     bandwidth = 1000
-    center_freq_vec = [1000, 2000, 4000, 8000]
+    center_freq_vec = [1000, 2000, 3600, 4000, 8000]
 
     for center_freq in tqdm(center_freq_vec):
         print(f"\n\nplotting beam pattern for wideband signal of bandwidth: {center_freq}...")
@@ -170,7 +224,7 @@ def array_resolution_wideband():
         N = 2
         b, a = butter(N, freq_range, btype='pass', analog=False, output='ba', fs=fs)
 
-        filename = os.path.join(root, f"array_resolution_wideband_fc={center_freq}.pgf")
+        filename = os.path.join(root, f"array_resolution_wideband_fc={center_freq}.pdf")
 
         time_temp = np.arange(0, duration, step=1 / fs)
         noise = np.random.randn(len(time_temp))
