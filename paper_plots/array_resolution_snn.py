@@ -32,6 +32,10 @@ def use_latex():
             "axes.linewidth": 0.5,
             "lines.linewidth": 1.0,
             "grid.linewidth": 0.5,
+            'xtick.major.width': 0.5,
+            'ytick.major.width': 0.5,
+            'xtick.major.size': 2,
+            'ytick.major.size': 2,
             #     "pgf.texsystem": "xelatex",
             #     "font.family": "Helvetica",
             #     "text.usetex": True,
@@ -112,7 +116,7 @@ def array_resolution_sin():
     # build beamformer matrix for various DoAs
     # 1. build a template signal
     duration = 0.4
-    freq_design_vec = [1000, 2000, 4000, 8000]
+    freq_design_vec = [1000, 2000, 3600, 4000, 8000]
 
     for freq_design in tqdm(freq_design_vec):
         # design a specific beamformer
@@ -187,7 +191,7 @@ def array_resolution_wideband():
     # 1. build a template signal
     duration = 0.4
     bandwidth = 1000
-    center_freq_vec = [1000, 2000, 4000, 8000]
+    center_freq_vec = [1000, 2000, 3600, 4000, 8000]
 
     for center_freq in tqdm(center_freq_vec):
         print(
