@@ -104,6 +104,7 @@ class ZeroCrossingSpikeEncoder(SpikeEncoder):
         """
         self.fs = fs
         self.robust_width = robust_width
+        self.bipolar = bipolar
 
     def evolve(self, sig_in: np.ndarray) -> np.ndarray:
         """
@@ -120,8 +121,10 @@ class ZeroCrossingSpikeEncoder(SpikeEncoder):
             peaks, _ = find_peaks(np.cumsum(sig_chan), distance=self.robust_width)
             spikes[chan, peaks] = 1
 
-            valleys, _ = find_peaks(-np.cumsum(sig_chan), distance=self.robust_width)
-            spikes[chan, valleys] = -1
+            # in the bipolar version: we also encode the negative spikes
+            if self.bipolar:
+                valleys, _ = find_peaks(-np.cumsum(sig_chan), distance=self.robust_width)
+                spikes[chan, valleys] = -1
 
         return spikes.T
 

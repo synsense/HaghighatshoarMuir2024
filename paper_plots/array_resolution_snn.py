@@ -125,11 +125,14 @@ def array_resolution_sin():
         tau_syn = 1 / (2 * np.pi * freq_design)
         tau_vec = [tau_mem, tau_syn]
 
+        # bipolar spikes
+        bipolar_spikes = False
         beamf = SNNBeamformer(
             geometry=geometry,
             kernel_duration=kernel_duration,
             freq_range=freq_range,
             tau_vec=tau_vec,
+            bipolar_spikes=bipolar_spikes,
             fs=fs,
         )
 
@@ -209,11 +212,14 @@ def array_resolution_wideband():
         freq_range = [center_freq - bandwidth / 2, center_freq + bandwidth / 2]
 
         # build the beamformer for the specific scenario
+        bipolar_spikes = False
+
         beamf = SNNBeamformer(
             geometry=geometry,
             kernel_duration=kernel_duration,
             freq_range=freq_range,
             tau_vec=tau_vec,
+            bipolar_spikes=bipolar_spikes,
             fs=fs,
         )
 
@@ -253,8 +259,9 @@ def array_resolution_wideband():
 
 
 def main():
-    # array_resolution_sin()
-    array_resolution_wideband()
+    array_resolution_sin()
+    # plot_beampattern()
+    # array_resolution_wideband()
 
 
 if __name__ == "__main__":

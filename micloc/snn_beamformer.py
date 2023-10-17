@@ -17,11 +17,13 @@ from numbers import Number
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
+# sampling rate of multi-mic board
+Fs = 48_000
 
 class SNNBeamformer:
     def __init__(self, geometry: ArrayGeometry, kernel_duration: np.ndarray, freq_range: np.ndarray,
-                 tau_vec: np.ndarray,
-                 fs: float):
+                 tau_vec: np.ndarray, bipolar_spikes: bool = False,
+                 fs: float = Fs):
         """
         this class implements an algorithm for building beamforming matrices in multi-mic arrays when the input is spiky.
         Args:
@@ -30,8 +32,8 @@ class SNNBeamformer:
             freq_range (np.ndarray): an array containing f_low and f_high frequencies used for bandpass filtering.
             NOTE: this is needed to make sure that the STHT matches very well the original Hilbert transform.
             tau_vec (np.ndarray): a list consisting of tau-syn and tau_mem of the neuron.
-            target_spike_rate (float): desired spike rate at which the beamformers are designed.
-            fs (float): sampling rate of the array.
+            bipolar_spikes (bool): if spikes should be bipolar +1/-1 or unipolar +1. Defaults to unipolar +1.
+            fs (float): sampling rate of the array. Defaults to Fs=48K in multi-mic board.
         """
         self.geometry = geometry
         self.fs = fs
@@ -61,7 +63,8 @@ class SNNBeamformer:
         # distance between two consecutive zero crossing
         zc_dist = int(fs / f_high)
         robust_width = zc_dist // 2
-        self.spk_encoder = ZeroCrossingSpikeEncoder(fs=self.fs, robust_width=robust_width, bipolar=True)
+        self.bipolar_spikes = bipolar_spikes
+        self.spk_encoder = ZeroCrossingSpikeEncoder(fs=self.fs, robust_width=robust_width, bipolar=bipolar_spikes)
 
     def design_from_template(self, template: Tuple[np.ndarray, np.ndarray], doa_list: np.ndarray) -> np.ndarray:
         """
@@ -149,22 +152,30 @@ class SNNBeamformer:
             stable_part = vmem_vec.shape[0] // 4
             vmem_stable = vmem_vec[stable_part:, :]
 
-            # vmem_stable -= vmem_stable.mean(axis=0).reshape(1,-1)
+            # find the suitable beamforming vectors depending on the polarity of the spikes
+            if not self.spk_encoder.bipolar:
+                # compute the covariance matrix
+                C = 1 / vmem_stable.shape[0] * (vmem_stable.T @ vmem_stable)
 
-            # 2. compute the covariance matrix
-            C = 1 / vmem_stable.shape[0] * (vmem_stable.T @ vmem_stable)
+                # get rid of the DC level of the signal by finding the special singular vector eliminating the DC value
+                bf_vec = self._find_dc_removed_sing_vec(C, rel_prec=0.00000001)
 
-            # arrange the covariance matrix in complex format so that the resulting beamforming vectors are
-            # complex rotation invariant as needed for beamforming applications
-            dim_comp = C.shape[0] // 2
-            C_comp_diag = (C[:dim_comp, :dim_comp] + C[dim_comp:, dim_comp:]) / 2
-            C_comp_off = (C[:dim_comp, dim_comp:] + C[dim_comp:, :dim_comp].T) / 2
+            else:
 
-            C_comp = C_comp_diag + 1j * C_comp_off
+                # compute the covariance matrix
+                C = 1 / vmem_stable.shape[0] * (vmem_stable.T @ vmem_stable)
 
-            U, D, _ = np.linalg.svd(C_comp)
+                # arrange the covariance matrix in complex format so that the resulting beamforming vectors are
+                # complex rotation invariant as needed for beamforming applications
+                dim_comp = C.shape[0] // 2
+                C_comp_diag = (C[:dim_comp, :dim_comp] + C[dim_comp:, dim_comp:]) / 2
+                C_comp_off = (C[:dim_comp, dim_comp:] + C[dim_comp:, :dim_comp].T) / 2
 
-            bf_vec = np.concatenate([np.real(U[:, 0]), np.imag(U[:, 0])])
+                C_comp = C_comp_diag + 1j * C_comp_off
+
+                U, D, _ = np.linalg.svd(C_comp)
+
+                bf_vec = np.concatenate([np.real(U[:, 0]), np.imag(U[:, 0])])
 
             bf_mat.append(bf_vec)
 

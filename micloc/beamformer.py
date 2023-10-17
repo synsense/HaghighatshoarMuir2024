@@ -19,9 +19,11 @@ from typing import List
 from numbers import Number
 from tqdm import tqdm
 
+# sampling rate of multi-mic board
+Fs = 48_000
 
 class Beamformer:
-    def __init__(self, geometry: ArrayGeometry, kernel_duration: float, freq_range: List, fs: float):
+    def __init__(self, geometry: ArrayGeometry, kernel_duration: float, freq_range: List, fs: float = Fs):
         """
         this class builds methods for building beamforming matrices in multi-mic arrays based on conventional subspace
         and super-resolution methods.
@@ -29,7 +31,7 @@ class Beamformer:
             geometry (ArrayGeometry): encoding of the geometry of the array in terms of time-of-arrivals.
             kernel_duration (float): length of the Hilbert kernel used for localization.
             freq_range (List): a list containing the lower and higher frequency range of the beamformer.
-            fs (float): sampling rate of the array.
+            fs (float): sampling rate of the array. Defaults to Fs=48K in multi-mic board.
         """
         self.geometry = geometry
         self.kernel_duration = kernel_duration
