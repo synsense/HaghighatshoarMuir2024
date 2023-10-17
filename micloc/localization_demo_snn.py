@@ -21,7 +21,7 @@ import numpy as np
 
 class Demo:
     def __init__(self, geometry: ArrayGeometry, freq_bands: np.ndarray, doa_list: np.ndarray, recording_duration: float,
-                 kernel_duration: float, fs: float):
+                 kernel_duration: float, bipolar_spikes: bool, fs: float):
         """
         this module builds an SNN beamformer based localization demo.
         Args:
@@ -30,6 +30,7 @@ class Demo:
             doa_list (np.ndarray): an array containing a grid of DoAs to be covered during localization.
             recording_duration (float): duration of each pack of recording.
             kernel_duration (float): duration of Hilbert kernel used for beamforming.
+            bipolar_spikes (bool): if bipolar spike encoding is used for localization. Defaults to False.
             fs (float): sampling period of the board.
         """
 
@@ -56,7 +57,7 @@ class Demo:
             tau_vec = [tau_syn, tau_mem]
 
             # build SNN beamforming module
-            beamf = SNNBeamformer(geometry=geometry, kernel_duration=kernel_duration, freq_range=freq_range, tau_vec=tau_vec, fs=fs)
+            beamf = SNNBeamformer(geometry=geometry, kernel_duration=kernel_duration, freq_range=freq_range, tau_vec=tau_vec, bipolar_spikes=bipolar_spikes, fs=fs)
             self.beamfs.append(beamf)
 
             # build the template signal and design bemforming vectors
@@ -189,12 +190,14 @@ def test_demo():
     kernel_duration = 10e-3
 
     # build the demo
+    bipolar_spikes = False
     demo = Demo(
         geometry=geometry,
         freq_bands=freq_bands,
         doa_list=doa_list,
         recording_duration=recording_duration,
         kernel_duration=kernel_duration,
+        bipolar_spikes=bipolar_spikes,
         fs=fs
     )
 
