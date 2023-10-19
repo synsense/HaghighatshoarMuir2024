@@ -9,6 +9,7 @@
 #
 # last update: 17.10.2023
 # ----------------------------------------------------------------------------------------------------------------------
+from re import S
 from archive.record import AudioRecorder
 from micloc.visualizer import Visualizer
 
@@ -23,12 +24,15 @@ from rockpool.nn.combinators import Sequential
 import torch
 
 # rockpool conversion/mapping modules
-from rockpool.devices.xylo.syns61201 import XyloSamna, XyloSim, config_from_specification, xa2_devkit_utils as hdu, mapper
+from rockpool.devices.xylo.syns61201 import XyloSamna, config_from_specification, xa2_devkit_utils as hdu, mapper
+from rockpool.devices.xylo.syns61201 import XyloSim
+
 from rockpool.transform import quantize_methods as q
 
 
 from scipy.signal import lfilter
 import matplotlib.pyplot as plt
+import time
 
 
 class Demo:
@@ -48,11 +52,11 @@ class Demo:
 
         # build the beamformer module
         # since we may have targeted several frequency bands we need several beamforming modules
-        freq_bands = np.asarray(freq_bands)
+        self.freq_bands = np.asarray(freq_bands)
 
-        if freq_bands.ndim == 1:
+        if self.freq_bands.ndim == 1:
             # there is only a single band to cover
-            freq_bands = freq_bands.reshape(1,-1)
+            self.freq_bands = self.freq_bands.reshape(1,-1)
 
         # beamforming modules and corresponding beamforming matrices
         self.beamfs = []
@@ -60,7 +64,7 @@ class Demo:
         self.tau_vecs = []
 
         # target several frequency bands
-        for freq_range in freq_bands:
+        for freq_range in self.freq_bands:
             # use the center frequency as the reference frequency
             freq_mid = np.mean(freq_range)
 
@@ -92,12 +96,21 @@ class Demo:
         self.kernel_duration = kernel_duration
 
         self.fs = fs
+        self.dt = 1.0/self.fs
 
-        #===========================================================================
-        #                    Build an SNN module for localization
-        #===========================================================================
+        self._initialize_snn_module()
+
+    
+    def _initialize_snn_module(self):
+        """ this module initializes xylo-a2 board for SNN processing and localization """
+        
+        print("\n")
+        print("+"*150)
+        print(" trying to connect to Xylo-a2 devkit ".center(150,"+"))
+        print("+"*150)
+
         # compute the number of input channels
-        num_freq_chan = len(freq_bands)
+        num_freq_chan = len(self.freq_bands)
         spike_dim_in_chan, spike_dim_out_chan = self.bf_mats[0].shape
 
         num_ch_in = num_freq_chan * spike_dim_in_chan
@@ -111,7 +124,7 @@ class Demo:
         weight = torch.tensor(data=weight, dtype=torch.float32)
 
         # thresholds
-        # TODO: we need to adjust the threshold based on the activity in various frequenvcy channels
+        # TODO: we need to adjust the threshold based on the activity in various frequency channels
         # TODO: how should this be done?
         threshold = 1
         thresholds = threshold * torch.ones(num_ch_out)
@@ -122,17 +135,18 @@ class Demo:
             tau_syn_vec.extend([tau_syn for _ in range(spike_dim_out_chan)])
             tau_mem_vec.extend([tau_mem for _ in range(spike_dim_out_chan)])
         
-        tau_mem_vec = torch.tensor(data=tau_mem_vec, dtype=torch.float32)
-        tau_syn_vec = torch.tensor(data=tau_syn_vec, dtype=torch.float32)
+        # extra factor
+        extra_factor = 10
+        tau_mem_vec = extra_factor * torch.tensor(data=tau_mem_vec, dtype=torch.float32)
+        tau_syn_vec = extra_factor * torch.tensor(data=tau_syn_vec, dtype=torch.float32)
 
 
         # build the network
         # NOTE: we add a dummy node at the end to make sure that we can deploy the netowrk and read
         # hidden layer outputs as canidates for rate encoding. 
         # NOTE: the number of neurons in hidden layer is equal to the number of grid points in DoA estimation x number of frequency channels.
-        threshold = 1.0
+        threshold = 0.2
 
-        dt = 1/self.fs
         self.net = Sequential(
             LinearTorch(
                 shape=(num_ch_in, num_ch_out),
@@ -144,7 +158,7 @@ class Demo:
                 threshold=threshold,
                 tau_syn=tau_syn_vec,
                 tau_mem=tau_mem_vec,
-                dt=dt,
+                dt=self.dt,
             ),
             LinearTorch(
                 shape=(num_ch_out, 1),
@@ -156,7 +170,7 @@ class Demo:
                 threshold=1000,
                 tau_syn=tau_syn_vec[0],
                 tau_mem=tau_mem_vec[0],
-                dt=dt,
+                dt=self.dt,
             ),
         )
 
@@ -174,16 +188,27 @@ class Demo:
         xylo_conf, is_valid, message = config_from_specification(**quant_spec)
 
         print('Valid config: ', is_valid)
-        XyloSim_model = XyloSim.from_config(xylo_conf, dt=1e-3)
 
-        # compute spike encopding
-        sig_in = np.random.randn(10000, 7)
-        spikes = self.spike_encoding(sig_in=sig_in)
+        # TODO: xylosim module did not work
+        #XyloSim_model = XyloSim.from_config(xylo_conf, dt=self.dt)
+        #spikes_out, _, _ = XyloSim_model(spikes, record=True)
 
-        # process the spikes with xylosim model
-        spikes_out, _, _ = XyloSim_model(spikes, record=True)
-        
-        print(spikes)
+        # build the xylo-samna version
+        hdks = hdu.find_xylo_a2_boards()
+        assert len(hdks) > 0, 'No Xylo-A2 found'
+        hdk = hdks[0]
+        print('Xylo a2 HW found')
+
+        print(f'Clock freq. set to {hdu.set_xylo_core_clock_freq(hdk, 6.25)} MHz')
+
+        config, is_valid, msg = config_from_specification(**quant_spec)
+        print('config is valid',is_valid)
+
+        self.xylo_a2 = XyloSamna(hdk, config)
+
+        print("Xylo a2 device was initialized successfully!")
+
+    
 
     
     def spike_encoding(self, sig_in: np.ndarray)-> np.ndarray:
@@ -215,45 +240,65 @@ class Demo:
 
 
         # compute spike encoding
+        # NOTE: we also need to convert the spikes into integer format
         spk_encoder = self.beamfs[0].spk_encoder
-        spikes_in = spk_encoder.evolve(sig_in_all)
+        spikes_in = spk_encoder.evolve(sig_in_all).astype(np.int64)
 
-        # process the spikes with the network
-        spikes_in = torch.tensor(data=spikes_in, dtype=torch.float32)
-        spikes_out, state, recording = self.net(spikes_in, record=True)
+        return spikes_in
 
-        vmem_layer = recording["1_LIFTorch"]["vmem"].squeeze().detach().numpy()
-        isyn_layer = recording["1_LIFTorch"]["isyn"].squeeze().detach().numpy()
-        spikes_layer = recording["1_LIFTorch"]["spikes"].squeeze().detach().numpy()
         
-        # spike rates
-        spk_rate_in = spikes_in.mean(0) * self.fs
-        spk_rate_out = spikes_layer.mean(0) * self.fs
-
-        # collect the spikes for various DoA
-        num_DoA_grid = len(self.doa_list)
-        spk_rate_DoA = spk_rate_out.reshape(-1,num_DoA_grid).sum(0)
-
-        print("input spike rate: ", spk_rate_in)
-        print("output spike rate: ", spk_rate_out)
-        print("spike rate over DoA grid: ", spk_rate_DoA)
-
-
-    def xylo_process(spikes_in: np.ndarray) -> np.ndarray:
+    def xylo_process(self, spikes_in: np.ndarray, record_power:bool=False) -> np.ndarray:
         """this function passes the spikes obtained from spike encoding of the input signal to the Xylo chip
         and returns the recorded spikes.
 
         Args:
-            spikes_in (np.ndarray): input spikes of dimension `T x num_chan`.
+            spikes_in (np.ndarray): input spikes of dimension `T x num_mic`.
+            record_power (bool): record the consumed power in the chip. Defaults to False.
 
         Returns:
             np.ndarray: output spikes produced by the Xylo chip.
         """
+        # reset the board
+        self.xylo_a2.reset_state()
 
-
-
-
+        # process the spikes with xylo_a2
+        # NOTE: recoridng is needed because we have put a dummy spike at the end to satisfy the configuration
+        # this is needed because the number of output channels in our case is much larger than the maximum 16
+        # output channels permitted for xylo-a2
+        record = True
+        _ , _ , rec =  self.xylo_a2.evolve(spikes_in[:100,:], record=record, record_power=record_power)
         
+        # no power measurement so we can skip this field
+        # snn_power = rec['logic_power'].mean()
+        # print('measured power of SNN core for current sample in mw:', snn_power *1000 )
+
+        # find the intermediate spikes representing the first layer of neurons
+        spikes_out = rec['Spikes']
+
+        return spikes_out
+
+
+    def extract_rate(self, spikes_in: np.ndarray)->np.ndarray:
+        """this module processes the collected spikes from xylo_a2 and extracts the spikes rate for DoA grids.
+
+        Args:
+            spikes_in (np.ndarray): spikes produced by xylo-a2.
+
+        Returns:
+            np.ndarray: spike rate at various DoA grid channels.
+        """
+        num_freq_channels = len(self.freq_bands)
+        num_DoA_grid = len(self.doa_list)
+
+        # reshape `T x (num_freq_channels x num_DoA_grid)` into `num_freq_channles` signals each of shape `T x num_DoA_grid`
+        # and aggregate their spike rate as a measure of their power or strength
+
+        rate_channels = np.mean(spikes_in, axis=0) * self.fs
+
+        rate_DoA = rate_channels.reshape(-1, num_DoA_grid).mean(0) * self.fs
+
+        return rate_DoA
+
 
 
 
@@ -320,28 +365,21 @@ class Demo:
             else:
                 # there is activity
 
-                # apply filterbank to the selected frequency band
-                data_filt = self.filterbank.evolve(sig_in=data)
+                # process the input signal and produce spikes
+                spikes_in = self.spike_encoding(sig_in=data)
 
+                # process the spikes with xylo_a2 
+                record_power = False
+
+                # compute the accumulated spike rate from all channels
+                start_xylo_a2_process = time.time()
+                spike_rate = self.xylo_process(spikes_in=spikes_in, record_power=record_power)
+                duration_xylo_a2_process = time.time() - start_xylo_a2_process
+
+                print("duration of spike processing by xulo-a2 kit: ", duration_xylo_a2_process)
                 
-
-                print("dimension of filterbank output: ", data_filt.shape)
-
-                # apply beamforming to various channels and add spike rate
-                power_grid = 0
-
-                for data_filt_chan, bf_mat_chan, beamf_module in zip(data_filt, self.bf_mats, self.beamfs):
-                    # compute the beamformed signal in each frequency channel separately
-                    data_bf_chan = beamf_module.apply_to_signal(bf_mat=bf_mat_chan, sig_in_vec=(time_vec, data_filt_chan))
-
-                    # compute the power vs. DoA (power spectrum) after beamforming
-                    power_grid_chan = np.mean(np.abs(data_bf_chan) ** 2, axis=0)
-
-                    # accumulate the power received from various frequency channels to obtain the final angular pattern
-                    power_grid = power_grid + power_grid_chan
-
                 # compute the DoA of the strongest target
-                DoA_index = np.argmax(power_grid)
+                DoA_index = np.argmax(spike_rate)
                 DoA = self.doa_list[DoA_index] * 180 / np.pi
 
                 # push it to the visualizer
@@ -366,7 +404,7 @@ def test_demo():
     doa_list = np.linspace(-np.pi, np.pi, num_grid)
 
     # duration of recording in each section
-    recording_duration = 0.25
+    recording_duration = 0.1
     fs = 48_000
     kernel_duration = 10e-3
 
