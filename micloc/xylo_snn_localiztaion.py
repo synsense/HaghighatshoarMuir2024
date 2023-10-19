@@ -1,14 +1,13 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # This module builds a simple visualization demo for multi-mic devkit.
-#
-# Note: in this version, we are using the final SNN version for target localization.
+# It uses the Xylo chip to process the spikes and used the resulting rate encoding to localize and track targets.
 #
 #
 # (C) Saeid Haghighatshoar
 # email: saeid.haghighatshoar@synsense.ai
 #
 #
-# last update: 16.10.2023
+# last update: 17.10.2023
 # ----------------------------------------------------------------------------------------------------------------------
 from archive.record import AudioRecorder
 from micloc.visualizer import Visualizer
@@ -17,6 +16,19 @@ from micloc.snn_beamformer import SNNBeamformer
 from micloc.array_geometry import ArrayGeometry, CenterCircularArray
 from micloc.filterbank import ButterworthFilterbank
 import numpy as np
+
+# rockpool module for deployment into Xylo
+from rockpool.nn.modules import LinearTorch, LIFBitshiftTorch, LIFTorch
+from rockpool.nn.combinators import Sequential
+import torch
+
+# rockpool conversion/mapping modules
+from rockpool.devices.xylo.syns61201 import XyloSamna, XyloSim, config_from_specification, xa2_devkit_utils as hdu, mapper
+from rockpool.transform import quantize_methods as q
+
+
+from scipy.signal import lfilter
+import matplotlib.pyplot as plt
 
 
 class Demo:
@@ -45,6 +57,7 @@ class Demo:
         # beamforming modules and corresponding beamforming matrices
         self.beamfs = []
         self.bf_mats = []
+        self.tau_vecs = []
 
         # target several frequency bands
         for freq_range in freq_bands:
@@ -55,6 +68,8 @@ class Demo:
             tau_mem = 1/(2*np.pi*freq_mid)
             tau_syn = tau_mem
             tau_vec = [tau_syn, tau_mem]
+
+            self.tau_vecs.append(tau_vec)
 
             # build SNN beamforming module
             beamf = SNNBeamformer(geometry=geometry, kernel_duration=kernel_duration, freq_range=freq_range, tau_vec=tau_vec, bipolar_spikes=bipolar_spikes, fs=fs)
@@ -77,6 +92,170 @@ class Demo:
         self.kernel_duration = kernel_duration
 
         self.fs = fs
+
+        #===========================================================================
+        #                    Build an SNN module for localization
+        #===========================================================================
+        # compute the number of input channels
+        num_freq_chan = len(freq_bands)
+        spike_dim_in_chan, spike_dim_out_chan = self.bf_mats[0].shape
+
+        num_ch_in = num_freq_chan * spike_dim_in_chan
+        num_ch_out = num_freq_chan * spike_dim_out_chan
+
+        # weight connection between layers
+        weight = np.zeros((num_ch_in, num_ch_out))
+        for ch in range(num_freq_chan):
+            weight[ch*spike_dim_in_chan : (ch+1)*spike_dim_in_chan, ch*spike_dim_out_chan:(ch+1)*spike_dim_out_chan] = self.bf_mats[ch]
+
+        weight = torch.tensor(data=weight, dtype=torch.float32)
+
+        # thresholds
+        # TODO: we need to adjust the threshold based on the activity in various frequenvcy channels
+        # TODO: how should this be done?
+        threshold = 1
+        thresholds = threshold * torch.ones(num_ch_out)
+
+        tau_mem_vec = []
+        tau_syn_vec = []
+        for tau_syn, tau_mem in self.tau_vecs:
+            tau_syn_vec.extend([tau_syn for _ in range(spike_dim_out_chan)])
+            tau_mem_vec.extend([tau_mem for _ in range(spike_dim_out_chan)])
+        
+        tau_mem_vec = torch.tensor(data=tau_mem_vec, dtype=torch.float32)
+        tau_syn_vec = torch.tensor(data=tau_syn_vec, dtype=torch.float32)
+
+
+        # build the network
+        # NOTE: we add a dummy node at the end to make sure that we can deploy the netowrk and read
+        # hidden layer outputs as canidates for rate encoding. 
+        # NOTE: the number of neurons in hidden layer is equal to the number of grid points in DoA estimation x number of frequency channels.
+        threshold = 1.0
+
+        dt = 1/self.fs
+        self.net = Sequential(
+            LinearTorch(
+                shape=(num_ch_in, num_ch_out),
+                weight=weight,
+                has_bias=False,
+            ),
+            LIFTorch(
+                shape=(num_ch_out,),
+                threshold=threshold,
+                tau_syn=tau_syn_vec,
+                tau_mem=tau_mem_vec,
+                dt=dt,
+            ),
+            LinearTorch(
+                shape=(num_ch_out, 1),
+                weight=torch.zeros(num_ch_out, 1),
+                has_bias=False,
+            ),
+            LIFTorch(
+                shape=(1,),
+                threshold=1000,
+                tau_syn=tau_syn_vec[0],
+                tau_mem=tau_mem_vec[0],
+                dt=dt,
+            ),
+        )
+
+        # get the chip version of the network
+        g = self.net.as_graph()
+
+        # map the graph to Xylo HW architecture
+        spec = mapper(g, weight_dtype='float', threshold_dtype='float', dash_dtype='float')
+
+        # quantize the parameters to Xylo HW constraints
+        quant_spec = spec.copy()
+        quant_spec.update(q.global_quantize(**quant_spec))
+
+        # get the HW config that we can use on Xylosim
+        xylo_conf, is_valid, message = config_from_specification(**quant_spec)
+
+        print('Valid config: ', is_valid)
+        XyloSim_model = XyloSim.from_config(xylo_conf, dt=1e-3)
+
+        # compute spike encopding
+        sig_in = np.random.randn(10000, 7)
+        spikes = self.spike_encoding(sig_in=sig_in)
+
+        # process the spikes with xylosim model
+        spikes_out, _, _ = XyloSim_model(spikes, record=True)
+        
+        print(spikes)
+
+    
+    def spike_encoding(self, sig_in: np.ndarray)-> np.ndarray:
+        """this function processes the input signal received from microphone and produces the spike encoding to be applied to SNN.
+
+        Args:
+            sig_in (np.ndarray): input `T x num_mic` signal received from the microphones.
+
+        Returns:
+            np.ndarray: `T x (num_mic x 2 x num_freq_chan)` spike signal produced via spike encoding.
+        """
+
+        # apply STHT to produce the STHT transform
+        # NOTE: all the frequency channels use the same STHT
+        stht_kernel = self.beamfs[0].kernel
+
+        sig_in_h = np.roll(sig_in, len(stht_kernel)//2, axis=0) + 1j * lfilter(stht_kernel, [1], sig_in, axis=0)
+
+        # real-valued version of the signal
+        sig_in_real = np.hstack([np.real(sig_in_h), np.imag(sig_in_h)])
+
+        # apply filters in the filterbank to further decompose the signal
+        sig_in_real_filt = self.filterbank.evolve(sig_in=sig_in_real)
+
+        # join all the frequency channels
+        # NOTE: num_chan = 2 x num_mic
+        F, T, num_chan = sig_in_real_filt.shape
+        sig_in_all = np.hstack([sig_in_real_filt[ch] for ch in range(F)])
+
+
+        # compute spike encoding
+        spk_encoder = self.beamfs[0].spk_encoder
+        spikes_in = spk_encoder.evolve(sig_in_all)
+
+        # process the spikes with the network
+        spikes_in = torch.tensor(data=spikes_in, dtype=torch.float32)
+        spikes_out, state, recording = self.net(spikes_in, record=True)
+
+        vmem_layer = recording["1_LIFTorch"]["vmem"].squeeze().detach().numpy()
+        isyn_layer = recording["1_LIFTorch"]["isyn"].squeeze().detach().numpy()
+        spikes_layer = recording["1_LIFTorch"]["spikes"].squeeze().detach().numpy()
+        
+        # spike rates
+        spk_rate_in = spikes_in.mean(0) * self.fs
+        spk_rate_out = spikes_layer.mean(0) * self.fs
+
+        # collect the spikes for various DoA
+        num_DoA_grid = len(self.doa_list)
+        spk_rate_DoA = spk_rate_out.reshape(-1,num_DoA_grid).sum(0)
+
+        print("input spike rate: ", spk_rate_in)
+        print("output spike rate: ", spk_rate_out)
+        print("spike rate over DoA grid: ", spk_rate_DoA)
+
+
+    def xylo_process(spikes_in: np.ndarray) -> np.ndarray:
+        """this function passes the spikes obtained from spike encoding of the input signal to the Xylo chip
+        and returns the recorded spikes.
+
+        Args:
+            spikes_in (np.ndarray): input spikes of dimension `T x num_chan`.
+
+        Returns:
+            np.ndarray: output spikes produced by the Xylo chip.
+        """
+
+
+
+
+        
+
+
 
     def run(self):
         """
@@ -144,9 +323,11 @@ class Demo:
                 # apply filterbank to the selected frequency band
                 data_filt = self.filterbank.evolve(sig_in=data)
 
+                
+
                 print("dimension of filterbank output: ", data_filt.shape)
 
-                # apply beamforming to various channels and add the power
+                # apply beamforming to various channels and add spike rate
                 power_grid = 0
 
                 for data_filt_chan, bf_mat_chan, beamf_module in zip(data_filt, self.bf_mats, self.beamfs):
@@ -176,7 +357,7 @@ def test_demo():
 
     # frequency range
     freq_bands = [
-        [1600, 2400],
+        [1600, 1700],
     ]
 
 
@@ -190,7 +371,7 @@ def test_demo():
     kernel_duration = 10e-3
 
     # build the demo
-    bipolar_spikes = True
+    bipolar_spikes = False
     demo = Demo(
         geometry=geometry,
         freq_bands=freq_bands,

@@ -18,6 +18,10 @@ class SpikeEncoder:
 
     def evolve(self, sig_in: np.ndarray) -> np.ndarray:
         raise NotImplementedError("this methods needs to be implemented in various spike encoders!")
+    
+    def __call__(self, *args, **kwargs) -> np.ndarray:
+        """ this is the same as evolve function. """
+        return self.evolve(*args, **kwargs)
 
 
 class IAFSpikeEncoder(SpikeEncoder):
