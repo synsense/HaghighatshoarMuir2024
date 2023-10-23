@@ -24,7 +24,7 @@ from rockpool.nn.combinators import Sequential
 import torch
 
 # rockpool conversion/mapping modules
-from rockpool.devices.xylo.syns61201 import XyloSamna, config_from_specification, xa2_devkit_utils as hdu, mapper
+from rockpool.devices.xylo.syns61201 import XyloSamna, XyloMonitor, config_from_specification, xa2_devkit_utils as hdu, mapper
 from rockpool.devices.xylo.syns61201 import XyloSim
 
 from rockpool.transform import quantize_methods as q
@@ -86,6 +86,8 @@ class Demo:
             bf_vecs = beamf.design_from_template(template=(time_temp, sig_temp), doa_list=doa_list)
 
             self.bf_mats.append(bf_vecs)
+        
+        self.tau_vecs = np.asarray(self.tau_vecs)
 
         # build a filterbank for various frequency bands covered by the array
         order = 1
@@ -97,6 +99,19 @@ class Demo:
 
         self.fs = fs
         self.dt = 1.0/self.fs
+
+        #===========================================================================
+        #                    CHANGE and RESCALE all time constants
+        #===========================================================================
+        target_dt = 1e-3
+        target_fs = 1/target_dt
+
+        scale = self.fs /target_fs
+
+        self.fs /= scale
+        self.dt *= scale
+        self.tau_vecs *= scale
+        
 
         self._initialize_snn_module()
 
@@ -145,7 +160,7 @@ class Demo:
         # NOTE: we add a dummy node at the end to make sure that we can deploy the netowrk and read
         # hidden layer outputs as canidates for rate encoding. 
         # NOTE: the number of neurons in hidden layer is equal to the number of grid points in DoA estimation x number of frequency channels.
-        threshold = 0.2
+        threshold = 0.01
 
         self.net = Sequential(
             LinearTorch(
@@ -162,12 +177,12 @@ class Demo:
             ),
             LinearTorch(
                 shape=(num_ch_out, 1),
-                weight=torch.zeros(num_ch_out, 1),
+                weight=torch.ones(num_ch_out, 1),
                 has_bias=False,
             ),
             LIFTorch(
                 shape=(1,),
-                threshold=1000,
+                threshold=1,
                 tau_syn=tau_syn_vec[0],
                 tau_mem=tau_mem_vec[0],
                 dt=self.dt,
@@ -193,6 +208,7 @@ class Demo:
         #XyloSim_model = XyloSim.from_config(xylo_conf, dt=self.dt)
         #spikes_out, _, _ = XyloSim_model(spikes, record=True)
 
+
         # build the xylo-samna version
         hdks = hdu.find_xylo_a2_boards()
         assert len(hdks) > 0, 'No Xylo-A2 found'
@@ -204,7 +220,38 @@ class Demo:
         config, is_valid, msg = config_from_specification(**quant_spec)
         print('config is valid',is_valid)
 
-        self.xylo_a2 = XyloSamna(hdk, config)
+        # build xylo-samna module
+        #self.xylo_monitor = XyloSamna(hdk, config, record=True, record_power=False)
+
+        # build xylo-monitor module
+        # device-module used for simulation
+        record = True
+        record_power = False
+        xylo_samna_dt = self.dt
+        self.xylo_samna = XyloSamna(
+            device=hdk,
+            config=config,
+            dt=xylo_samna_dt,
+            record=record, 
+            record_power=record_power
+        )
+
+
+        # output_mode = ['Spike', 'Vmem']
+        # xylo_monitor_dt = self.dt
+        # self.xylo_monitor = XyloMonitor(
+        #     device=hdk, 
+        #     config=config, 
+        #     dt = xylo_monitor_dt,
+        #     output_mode=output_mode[1],
+        #     amplify_level='high',
+        #     hibernation_mode=False,
+        #     divisive_norm=False,
+        #     divisive_norm_params={"iaf_bias": 3, "p": 2,},
+        #     read_register=False
+        # ) 
+        self.xylo_monitor = None
+        
 
         print("Xylo a2 device was initialized successfully!")
 
@@ -258,15 +305,18 @@ class Demo:
         Returns:
             np.ndarray: output spikes produced by the Xylo chip.
         """
-        # reset the board
-        self.xylo_a2.reset_state()
+        # reset the state
+        # self.xylo_monitor.reset_state()
+        #self.xylo_monitor._state_buffer.reset()
 
-        # process the spikes with xylo_a2
+
+        # process the spikes with xylo_monitor
         # NOTE: recoridng is needed because we have put a dummy spike at the end to satisfy the configuration
         # this is needed because the number of output channels in our case is much larger than the maximum 16
         # output channels permitted for xylo-a2
+        record_power = False
         record = True
-        _ , _ , rec =  self.xylo_a2.evolve(spikes_in[:100,:], record=record, record_power=record_power)
+        out , state , rec =  self.xylo_samna.evolve(spikes_in[:100,:], record=True)
         
         # no power measurement so we can skip this field
         # snn_power = rec['logic_power'].mean()

@@ -117,6 +117,7 @@ def test_speech_target():
         tau_vec=tau_vec,
         freq_range=freq_range,
         fs=fs,
+        bipolar_spikes=True
     )
 
     # build beamformer matrix for various DoAs
@@ -224,7 +225,7 @@ def test_noisy_target():
     # build the corresponding beamformer
     kernel_duration = 10.0e-3
 
-    tau_mem = 0.3 / (2 * np.pi * freq_design)
+    tau_mem = 1.0 / (2 * np.pi * freq_design)
     tau_syn = tau_mem
     tau_vec = np.asarray([tau_syn, tau_mem])
 
@@ -234,6 +235,7 @@ def test_noisy_target():
         tau_vec=tau_vec,
         freq_range=freq_range,
         fs=fs,
+        bipolar_spikes=True
     )
 
     # build beamformer matrix for various DoAs
@@ -258,7 +260,7 @@ def test_noisy_target():
     # sig_temp = lfilter(b, a, noise)
 
     # 2. use an angular grid
-    num_grid = 8 * num_mic + 1
+    num_grid = 64 * num_mic + 1
     doa_list = np.linspace(-np.pi, np.pi, num_grid)
 
     bf_mat = beamf.design_from_template(
