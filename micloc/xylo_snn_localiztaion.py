@@ -8,11 +8,8 @@
 # email: saeid.haghighatshoar@synsense.ai
 #
 #
-# last update: 26.10.2023
+# last update: 27.10.2023
 # ----------------------------------------------------------------------------------------------------------------------
-from multiprocessing.sharedctypes import Value
-from re import S
-from types import MethodDescriptorType
 from archive.record import AudioRecorder
 from micloc.visualizer import Visualizer
 
@@ -33,9 +30,7 @@ from rockpool.devices.xylo.syns61201 import XyloSim
 from rockpool.transform import quantize_methods as q
 
 from scipy.signal import lfilter
-import matplotlib.pyplot as plt
 import time
-import inspect
 
 
 class Demo:
@@ -450,7 +445,7 @@ class Demo:
 
                 # simplest method for estimating DoA
                 method_list = ["peak", "periodic_ml", "trimmed_periodic_ml"]
-                method = method_list[1]
+                method = method_list[0]
 
                 print("\n\n")
                 print(f"method used for DoA estimation from spike rate in `run_demo`: ", method)
@@ -577,7 +572,7 @@ def run_demo(mode: str):
     kernel_duration = 10e-3
 
     # build the demo
-    bipolar_spikes = False
+    bipolar_spikes = True
 
     # use xylosim version for speedup
     xylosim_version = True
@@ -604,7 +599,7 @@ def run_demo(mode: str):
 
 def main():
     mode_list = ["visualization", "power_measurement"]
-    mode = mode_list[1]
+    mode = mode_list[0]
 
     run_demo(mode=mode)
 

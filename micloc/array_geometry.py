@@ -48,6 +48,11 @@ class ArrayGeometry:
 
         return delays
 
+    def __len__(self)->int:
+        """" returns the number of sensors in the array """
+        return len(self.r_vec)
+        
+
 
 class CircularArray(ArrayGeometry):
     def __init__(self, radius: float, num_mic: int, speed: float = SOUND_SPEED_IN_OPEN_AIR):
