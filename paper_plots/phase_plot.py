@@ -32,7 +32,7 @@ def plot_phase():
     if not os.path.exists(root):
         os.mkdir(root)
 
-    filename = os.path.join(root, "two_exp_phase.pgf")
+    filename = os.path.join(root, "two_exp_phase.pdf")
 
     # parameters of the system
     time_vec = np.linspace(0, 4*np.pi, 10000)

@@ -54,13 +54,13 @@ def use_latex():
     plt.rc("figure", titlesize=SMALL_SIZE)  # fontsize of the figure title
 
 
-SAVE_PLOTS = False
+SAVE_PLOTS = True
 
 if SAVE_PLOTS:
     use_latex()
 
 
-def plot_beampattern(doa_list, corr, title, filename):
+def plot_beampattern(doa_list, beam1, beam2, title, filename):
     mm = 1 / 25.4
 
     plt.figure(figsize=[35 * mm, 35 * mm])
@@ -68,8 +68,8 @@ def plot_beampattern(doa_list, corr, title, filename):
     ax1 = plt.subplot(gs[0], polar=True)
     # ax2 = plt.subplot(gs[1], polar=False)
 
-    ax1.plot(doa_list, np.abs(corr[len(corr) // 2]), label="beam pattern")
-    ax1.plot(doa_list, np.abs(corr[3 * len(corr) // 4]), label="beam pattern")
+    ax1.plot(doa_list, np.abs(beam1), label="beam pattern")
+    ax1.plot(doa_list, np.abs(beam2), label="beam pattern")
     ax1.set_title(title)
     ax1.grid(True)
     ax1.set_xticks(np.arange(0 / 180 * np.pi, 360 / 180 * np.pi, 60 / 180 * np.pi))
@@ -138,28 +138,30 @@ def array_resolution_sin():
         beam_pattern2 = ang_pow_spec2.mean(0)
         beam_pattern2 = beam_pattern2 / beam_pattern2.max()
 
-        plt.figure()
-        gs = gridspec.GridSpec(2, 1, height_ratios=[1.8, 1])
-        ax1 = plt.subplot(gs[0], polar=True)
-        ax2 = plt.subplot(gs[1], polar=False)
+        plot_beampattern(doa_list, beam_pattern1, beam_pattern2, f"$F= {freq_design / 1000:0.0f}$ kHz", filename)
 
-        ax1.plot(doa_list, beam_pattern1, label="beam pattern")
-        ax1.plot(doa_list, beam_pattern2, label="beam pattern")
-        ax1.set_title(
-            f"array resolution: freq= {freq_design / 1000:0.1f} KHz")
-        ax1.grid(True)
+        # plt.figure()
+        # gs = gridspec.GridSpec(2, 1, height_ratios=[1.8, 1])
+        # ax1 = plt.subplot(gs[0], polar=True)
+        # ax2 = plt.subplot(gs[1], polar=False)
 
-        ax2.plot(doa_list / np.pi * 180, beam_pattern1)
-        ax2.plot(doa_list / np.pi * 180, beam_pattern2)
-        ax2.legend(["DoA: 0", "DoA: 90"])
-        ax2.set_xlabel("DoA")
-        ax2.set_ylabel("array resolution")
-        ax2.grid(True)
+        # ax1.plot(doa_list, beam_pattern1, label="beam pattern")
+        # ax1.plot(doa_list, beam_pattern2, label="beam pattern")
+        # ax1.set_title(
+        #     f"array resolution: freq= {freq_design / 1000:0.1f} KHz")
+        # ax1.grid(True)
 
-        if SAVE_PLOTS:
-            plt.savefig(filename)
-        else:
-            plt.draw()
+        # ax2.plot(doa_list / np.pi * 180, beam_pattern1)
+        # ax2.plot(doa_list / np.pi * 180, beam_pattern2)
+        # ax2.legend(["DoA: 0", "DoA: 90"])
+        # ax2.set_xlabel("DoA")
+        # ax2.set_ylabel("array resolution")
+        # ax2.grid(True)
+
+        # if SAVE_PLOTS:
+        #     plt.savefig(filename)
+        # else:
+        #     plt.draw()
 
     if not SAVE_PLOTS:
         plt.show()

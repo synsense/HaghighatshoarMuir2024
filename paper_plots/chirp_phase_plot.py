@@ -33,7 +33,7 @@ def plot_phase_chirp():
     if not os.path.exists(root):
         os.mkdir(root)
 
-    filename = os.path.join(root, "phase_chirp.pgf")
+    filename = os.path.join(root, "phase_chirp.pdf")
     
     # chirp information
     duartion = 4

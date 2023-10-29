@@ -279,7 +279,7 @@ class SNNBeamformer:
         sig_in_vec_h = np.roll(sig_in_vec, self.kernel_length // 2, axis=0) + 1j * lfilter(self.kernel, [1],
                                                                                            sig_in_vec, axis=0)
 
-        # remove the low-pass part of the signal so that STHT works well
+        # remove the low- and high-frequency components of the signal so that STHT works well
         b, a = self.bandpass_filter
         sig_in_vec_h = lfilter(b, a, sig_in_vec_h, axis=0)
 
