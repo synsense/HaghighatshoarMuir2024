@@ -58,7 +58,7 @@ def use_latex():
 
 
 
-SAVE_PLOTS = False
+SAVE_PLOTS = True
 
 if SAVE_PLOTS:
     use_latex()
@@ -139,18 +139,18 @@ def test_speech_target():
     sig_temp = np.sin(phase_inst)
 
     freq_test = (f_min + f_max) / 2
-    time_test = time_temp[: len(time_temp) // 16]
+    time_test = time_temp
     sig_test = np.sin(2 * np.pi * freq_test * time_test)
 
     # - Load a speech sample
-    sig_test, samplefreq = sf.read('84-121123-0020.flac')
+    sig_test, samplefreq = sf.read('paper_plots/84-121123-0020.flac')
     time_test = np.arange(len(sig_test)) / samplefreq
     time_fs = np.linspace(time_test[0], time_test[-1], int(len(sig_test) / samplefreq * fs))
     sig_test = np.interp(time_fs, time_test, sig_test)
 
     # random DoA index
     rand_doa_index = int(np.random.rand(1)[0] * len(doa_list))
-    rand_doa_index = 0#len(doa_list) // 4
+    rand_doa_index = len(doa_list) // 2
     doa_target = doa_list[rand_doa_index]
 
     snr_db_vec = [-10, 0, 10, 20]
@@ -172,7 +172,7 @@ def test_speech_target():
         )
 
         # compute power
-        power = np.mean(np.abs(sig_bf) ** 2, axis=1)
+        power = np.mean(np.abs(sig_bf) ** 2, axis=0)
         power /= power.max()
 
         plt.plot(
@@ -261,12 +261,12 @@ def test_noisy_target():
     # sig_temp = lfilter(b, a, noise)
 
     freq_test = (f_min + f_max) / 2
-    time_test = time_temp[: len(time_temp) // 16]
+    time_test = time_temp #[: len(time_temp) // 16]
     sig_test = np.sin(2 * np.pi * freq_test * time_test)
 
     # random DoA index
     rand_doa_index = int(np.random.rand(1)[0] * len(doa_list))
-    rand_doa_index = 0#len(doa_list) // 4
+    rand_doa_index = len(doa_list) // 2
     doa_target = doa_list[rand_doa_index]
 
     snr_gain_due_to_bandwidth = (fs / 2) / (f_max - f_min)
@@ -288,6 +288,13 @@ def test_noisy_target():
             duration_overlap=0.
         )
 
+        # time_temp = np.arange(0, duration, step=1 / fs)
+        # sig_temp = np.sin(2 * np.pi * freq_design * time_temp)
+
+        # ## compute two beampatterns
+        # sig_bf = beamf.apply_to_template(template=[time_temp, sig_temp, 0], num_active_freq=1,
+        #                                         duration_overlap=0.0, snr_db=1000)
+        
         print(sig_bf.shape)
 
         # compute power
@@ -326,7 +333,7 @@ def test_noisy_target():
     angle_err = []
     num_sim = 100
 
-    test_duration = 100e-3
+    test_duration = 1000e-3
     time_test = np.arange(0, test_duration, step=1 / fs)
     sig_test = np.sin(2 * np.pi * freq_design * time_test)
 
@@ -334,7 +341,7 @@ def test_noisy_target():
 
     doa_err_vec = np.zeros((np.size(snr_db_vec), num_sim))
 
-    for snr_ind, snr_db in tqdm(enumerate(snr_db_vec)):
+    for snr_ind, snr_db in tqdm(enumerate(snr_db_vec), total = len(snr_db_vec)):
         # snr correction considering the snr improvement after filtering
         snr_db_target = snr_db - 10 * np.log10(snr_gain_due_to_bandwidth)
 
