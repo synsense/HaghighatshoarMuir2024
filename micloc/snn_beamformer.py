@@ -20,8 +20,9 @@ import matplotlib.pyplot as plt
 # sampling rate of multi-mic board
 Fs = 48_000
 
+
 class SNNBeamformer:
-    def __init__(self, geometry: ArrayGeometry, kernel_duration: np.ndarray, freq_range: np.ndarray,
+    def __init__(self, geometry: ArrayGeometry, kernel_duration: float, freq_range: np.ndarray,
                  tau_vec: np.ndarray, bipolar_spikes: bool = False,
                  fs: float = Fs):
         """
@@ -132,7 +133,8 @@ class SNNBeamformer:
 
             # compute the in-phase and quadrature parts
             # NOTE: here we are shifting the in-phase part in time to take into account the delay due to STHT filter
-            sig_in_vec_h = np.roll(sig_in_vec, self.kernel_length // 2, axis=0) + 1j * lfilter(self.kernel, [1], sig_in_vec, axis=0)
+            sig_in_vec_h = np.roll(sig_in_vec, self.kernel_length // 2, axis=0) + 1j * lfilter(self.kernel, [1],
+                                                                                               sig_in_vec, axis=0)
 
             # remove the low-pass part of the signal so that STHT works well
             b, a = self.bandpass_filter
