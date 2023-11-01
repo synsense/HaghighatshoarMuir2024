@@ -73,3 +73,39 @@ class Envelope:
         sig_out = np.asarray(sig_out)
 
         return sig_out
+
+
+def find_peak_location(sig_in: np.ndarray, win_size: int, periodic: bool = True) -> int:
+    """
+    this function finds the location of peak in the input signal by applying some averaging.
+    Args:
+        sig_in (np.ndarray): input signal.
+        win_size (int): size of averaging window used for finding the location of peak.
+        periodic (bool): if the signal is periodic or not!
+
+    Returns:
+        int: location of peak.
+    """
+
+    if sig_in.ndim != 1:
+        raise ValueError("input signal should be 1-dim!")
+
+    if win_size % 2 != 1:
+        raise ValueError("averaging window size should be odd to not create confusion in peak index!")
+
+    if win_size > len(sig_in) // 2:
+        raise ValueError("size of averaging window is larger than half the length of input signal!")
+
+    # averaging filter
+    window = np.ones(win_size)
+
+    sig_avg = np.convolve(window, sig_in, mode='full')
+
+    # find the location of peak
+    index = np.argmax(sig_avg)
+    index -= win_size // 2
+
+    if periodic:
+        index = index % len(sig_in)
+
+    return index
