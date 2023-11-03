@@ -22,8 +22,15 @@ from tqdm import tqdm
 # sampling rate of multi-mic board
 Fs = 48_000
 
+
 class Beamformer:
-    def __init__(self, geometry: ArrayGeometry, kernel_duration: float, freq_range: List, fs: float = Fs):
+    def __init__(
+        self,
+        geometry: ArrayGeometry,
+        kernel_duration: float,
+        freq_range: List,
+        fs: float = Fs,
+    ):
         """
         this class builds methods for building beamforming matrices in multi-mic arrays based on conventional subspace
         and super-resolution methods.
@@ -53,14 +60,22 @@ class Beamformer:
             if f_low > f_high:
                 raise Exception()
         except Exception:
-            raise ValueError("freq_range should be a vector consisting of two frequencies f_low < f_high!")
+            raise ValueError(
+                "freq_range should be a vector consisting of two frequencies f_low < f_high!"
+            )
 
         order = 2
         cutoff = freq_range
-        self.bandpass_filter = butter(order, cutoff, btype="bandpass", analog=False, output="ba", fs=fs)
+        self.bandpass_filter = butter(
+            order, cutoff, btype="bandpass", analog=False, output="ba", fs=fs
+        )
 
-    def design_from_template(self, template: Tuple[np.ndarray, np.ndarray], doa_list: np.ndarray,
-                             interference_removal: bool = False) -> np.ndarray:
+    def design_from_template(
+        self,
+        template: Tuple[np.ndarray, np.ndarray],
+        doa_list: np.ndarray,
+        interference_removal: bool = False,
+    ) -> np.ndarray:
         """
         this function builds suitable beamforming matrices for the array when it receives a given waveform.
         Args:
@@ -77,7 +92,9 @@ class Beamformer:
         try:
             time_temp, sig_temp = template
         except Exception:
-            raise ValueError("input template should be a tuple containing (time_in, sig_in) of the template signal!")
+            raise ValueError(
+                "input template should be a tuple containing (time_in, sig_in) of the template signal!"
+            )
 
         # resample the signal to the clock rate of the array
         time_interp = np.arange(time_temp.min(), time_temp.max(), step=1 / self.fs)
@@ -89,16 +106,13 @@ class Beamformer:
         cov_mat_list = []
 
         print()
-        print('+' * 150)
-        print(" designing beamforming matrices for various DoAs ".center(150, '+'))
-        print('+' * 150)
+        print("+" * 150)
+        print(" designing beamforming matrices for various DoAs ".center(150, "+"))
+        print("+" * 150)
 
         for doa in tqdm(doa_list):
             # compute the delays associated with the DoA
-            delays = self.geometry.delays(
-                theta=doa,
-                normalized=True
-            )
+            delays = self.geometry.delays(theta=doa, normalized=True)
 
             # interpolate the input signal with the given delay values
             sig_in_vec = []
@@ -115,8 +129,9 @@ class Beamformer:
             sig_in_vec = np.asarray(sig_in_vec).T
 
             # compute STHT
-            sig_in_vec_h = np.roll(sig_in_vec, len(self.kernel) // 2, axis=0) + 1j * lfilter(self.kernel, [1],
-                                                                                             sig_in_vec, axis=0)
+            sig_in_vec_h = np.roll(
+                sig_in_vec, len(self.kernel) // 2, axis=0
+            ) + 1j * lfilter(self.kernel, [1], sig_in_vec, axis=0)
 
             # get rid of the low and high part of the spectrum
             b, a = self.bandpass_filter
@@ -128,7 +143,11 @@ class Beamformer:
             sig_in_vec_h_stable = sig_in_vec_h[stable_part:, :]
 
             # 2. compute the covariance matrix
-            cov_mat = 1 / sig_in_vec_h_stable.shape[0] * (sig_in_vec_h_stable.conj().T @ sig_in_vec_h_stable)
+            cov_mat = (
+                1
+                / sig_in_vec_h_stable.shape[0]
+                * (sig_in_vec_h_stable.conj().T @ sig_in_vec_h_stable)
+            )
 
             cov_mat_list.append(cov_mat)
 
@@ -152,7 +171,10 @@ class Beamformer:
                 cov_mat_sum = cov_mat_sum + cov_mat
 
             # add a little bit diagonal offset to make sure that the matrix is strictly PSD
-            cov_mat_sum += np.diag(np.mean(np.diag(cov_mat_sum)) * np.ones(cov_mat_sum.shape[0])) / 10
+            cov_mat_sum += (
+                np.diag(np.mean(np.diag(cov_mat_sum)) * np.ones(cov_mat_sum.shape[0]))
+                / 10
+            )
 
             for idx, cov_mat in enumerate(cov_mat_list):
                 # in scipy the singular values are sorted in an ascending fashion and not the same as those in SVD
@@ -169,8 +191,12 @@ class Beamformer:
 
         return bf_mat, cov_mat_list
 
-    def apply_to_template(self, bf_mat: np.ndarray, template: Tuple[np.ndarray, np.ndarray, Union[Number, np.ndarray]],
-                          snr_db: float) -> np.ndarray:
+    def apply_to_template(
+        self,
+        bf_mat: np.ndarray,
+        template: Tuple[np.ndarray, np.ndarray, Union[Number, np.ndarray]],
+        snr_db: float,
+    ) -> np.ndarray:
         """
         this module applies beamforming when the array receives a given template [time_temp, sig_temp, doa_temp] and returns the signal after beamforming.
         Notes: in this version, the DoA of the source transmitting the template signal may vary during time.
@@ -188,7 +214,8 @@ class Beamformer:
             time_temp, sig_temp, doa_temp = template
         except Exception:
             raise ValueError(
-                "input template should be a tuple containing (time_in, sig_in, doa_in) of the template signal!")
+                "input template should be a tuple containing (time_in, sig_in, doa_in) of the template signal!"
+            )
 
         if isinstance(doa_temp, Number):
             doa_temp = doa_temp * np.ones_like(sig_temp)
@@ -205,16 +232,24 @@ class Beamformer:
 
         # compute the signal received at the array
         # NOTE: here we apply a delay normalization to all the samples later rather than sample by sample normalization which will yield wrong results.
-        delays = np.asarray([self.geometry.delays(theta=doa, normalized=False) for doa in doa_temp]).T
+        delays = np.asarray(
+            [self.geometry.delays(theta=doa, normalized=False) for doa in doa_temp]
+        )
         delays = delays - delays.min()
 
         time_delayed = time_temp.reshape(-1, 1) - delays
         time_delayed[time_delayed < time_temp.min()] = time_temp.min()
 
-        sig_in_vec = np.interp(time_delayed[:], time_temp, sig_temp).reshape(time_delayed.shape)
+        sig_in_vec = np.interp(time_delayed[:], time_temp, sig_temp).reshape(
+            time_delayed.shape
+        )
 
         # add noise to the received signal in the array
-        noise = np.sqrt(np.mean(sig_in_vec ** 2)) / np.sqrt(snr) * np.random.randn(*sig_in_vec.shape)
+        noise = (
+            np.sqrt(np.mean(sig_in_vec**2))
+            / np.sqrt(snr)
+            * np.random.randn(*sig_in_vec.shape)
+        )
         sig_in_vec += noise
 
         # compute signal after beamforming
@@ -239,11 +274,13 @@ class Beamformer:
 
         if num_chan != num_mic:
             raise ValueError(
-                f"number of channels in the input siganl {num_chan} should be the same as the number of microphones {num_mic}!")
+                f"number of channels in the input siganl {num_chan} should be the same as the number of microphones {num_mic}!"
+            )
 
         # compute the kernel Hilbert transform of the input signal
-        sig_in_kernel_H = np.roll(sig_in, len(self.kernel) // 2, axis=0) + 1j * lfilter(self.kernel, [1], sig_in,
-                                                                                        axis=0)
+        sig_in_kernel_H = np.roll(sig_in, len(self.kernel) // 2, axis=0) + 1j * lfilter(
+            self.kernel, [1], sig_in, axis=0
+        )
 
         # apply low-pass filteirng to get rid of low and high frequency part of the spectrum
         b, a = self.bandpass_filter

@@ -63,6 +63,7 @@ SAVE_PLOTS = True
 if SAVE_PLOTS:
     use_latex()
 
+num_active_freq = 11
 
 def approx_decreasing(sig_in):
     """
@@ -129,7 +130,6 @@ def test_speech_target():
         fs=fs,
     )
 
-
     # build a chirp signal
     f_min, f_max = freq_range
     period = time_temp[-1]
@@ -166,7 +166,7 @@ def test_speech_target():
         snr_db_bandwidth = snr_db
         sig_bf = beamf.apply_to_template(
             template=[time_fs, sig_test, doa_target],
-            num_active_freq=1,
+            num_active_freq=num_active_freq,
             duration_overlap=0.,
             snr_db=snr_db_bandwidth,
         )
@@ -284,7 +284,7 @@ def test_noisy_target():
         sig_bf = beamf.apply_to_template(
             template=[time_test, sig_test, doa_target],
             snr_db=snr_db_bandwidth,
-            num_active_freq=1,
+            num_active_freq=num_active_freq,
             duration_overlap=0.
         )
 
@@ -352,7 +352,7 @@ def test_noisy_target():
             sig_bf = beamf.apply_to_template(
                 template=[time_test, sig_test, doa_target],
                 snr_db=snr_db_target,
-                num_active_freq=1,
+                num_active_freq=num_active_freq,
                 duration_overlap=0.,
             )
 
@@ -481,7 +481,7 @@ def test_moving_target():
     doa_test = doa_max * np.sin(num_period * np.pi / duration_test * time_test)
 
     sig_bf = beamf.apply_to_template(
-       template=[time_test, sig_test, doa_test], snr_db=snr_db, num_active_freq=1, duration_overlap=0.,
+       template=[time_test, sig_test, doa_test], snr_db=snr_db, num_active_freq=num_active_freq, duration_overlap=0.,
     )
 
     # compute the envelope of output signal
