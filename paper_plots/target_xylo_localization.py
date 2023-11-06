@@ -242,11 +242,125 @@ def test_speech_target():
     #     f"Angular power spectrum after beamforming:\nfreq-range:[{f_min / 1000:0.1f}, {f_max / 1000:0.1f}] KHz, DoA-target: {doa_target * 180 / np.pi:0.2f} deg"
     # )
     plt.axvline(x=0., color="k", label="target DoA", linestyle=':')
-    plt.legend()
+    # plt.legend()
 
     if SAVE_PLOTS:
         plt.savefig(filename, bbox_inches="tight", transparent=True)
     else:
+        plt.show()
+
+    # apply statistical analysis of the precision of DoA estimation
+    snr_db_vec = np.linspace(-10, 20, 11)
+    # snr_db_vec = np.linspace(0,20, 5)
+    angle_err = []
+    num_sim = 20
+
+    # test_duration = 1000e-3
+    # time_test = np.arange(0, test_duration, step=1 / fs)
+    # sig_test = np.sin(2 * np.pi * freq_design * time_test)
+
+    # NOTE: use another signal for test since sinusoids at higher frequency can be problematic due to zero-crossing
+    # - use a chirp signal
+    f_min, f_max = freq_range
+    period = time_test[-1]
+    freq_inst = f_min + (f_max - f_min) * (time_test % period) / period
+    phase_inst = 2 * np.pi * np.cumsum(freq_inst) * 1 / fs
+
+    sig_test = np.sin(phase_inst)
+
+    print("\n", " statistical analysis ".center(150, "*"), "\n")
+
+    doa_err_vec = np.zeros((np.size(snr_db_vec), num_sim))
+
+    for snr_ind, snr_db in tqdm(enumerate(snr_db_vec)):
+        print(f"statistical analysis for snr-db: {snr_db}\n")
+
+        # snr correction considering the snr improvement after filtering
+        snr_db_target = snr_db
+        snr_target = 10 ** (snr_db_target / 10)
+
+        for sim in tqdm(range(num_sim)):
+            doa_target = np.random.rand(1)[0] * 2 * np.pi
+
+            # obtain the corresponding input signal in the input of array
+            sig_in = signal_from_template(template=(time_fs, sig_test, doa_target), geometry=geometry)
+
+            # add noise to the signal
+            sig_pow = np.mean(sig_in ** 2)
+            noise_sigma = np.sqrt(sig_pow / snr_target)
+
+            sig_in_noisy = sig_in + noise_sigma * np.random.randn(*sig_in.shape)
+
+            # apply spike encoding to get the spikes
+            spikes_in = xylosim.spike_encoding(sig_in=sig_in_noisy)
+
+            # process the spikes by XyloSim SNN and produce output spikes
+            spikes_out = xylosim.xylo_process(spikes_in=spikes_in)
+
+            # compute the spike rate profile as a measure of power
+            power = np.mean(spikes_out, axis=0) * fs
+            power /= power.max()
+
+            # estimate the DoA from power
+            # method 1: without any denoising
+            doa_target_est = doa_list[np.argmax(power)]
+
+            # method 2: more robust for finding the location of peaks in power vector
+            win_size = num_grid//32
+            win_size = 2 * (win_size//2) + 1
+            doa_target_index = find_peak_location(sig_in=power, win_size=win_size)
+            doa_target_est = doa_list[doa_target_index]
+
+            doa_err = np.arcsin(np.abs(np.sin(doa_target_est - doa_target)))
+            doa_err_vec[snr_ind, sim] = doa_err
+
+        # compute MAE error
+        doa_err_avg = np.mean(np.abs(doa_err))
+
+        angle_err.append(doa_err_avg)
+
+    # plot
+    # NOTE: we find the best monotone approximation
+    angle_err = np.asarray(angle_err)
+    # angle_err = approx_decreasing(np.asarray(angle_err))
+
+    plt.figure(figsize=[40 * mm, 40 * mm])
+
+    plt.plot(snr_db_vec, angle_err / np.pi * 180)
+    plt.grid(True)
+    plt.xlabel("SNR (dB)")
+    plt.ylabel("Angle error (deg.)")
+
+    num_xticks = 5
+
+    filename = os.path.join(dir_name, "xylo_speech_target_accuracy_snr.pdf")
+
+    plt.figure(figsize=[40 * mm, 40 * mm])
+
+    plt.boxplot(doa_err_vec.T / np.pi * 180, vert=True, labels=snr_db_vec, manage_ticks=False,
+                medianprops={'linestyle': '-', 'color': 'black', 'linewidth': 0.5}, boxprops={'linewidth': 0.5},
+                showcaps=False, sym='k.', flierprops={'markersize': 2}, whiskerprops={'linewidth': 0.5})
+    plt.plot([0, len(snr_db_vec) + 1], [1, 1], 'k:', linewidth=0.5)
+    # plt.xticks(range(1, len(doa_err_vec), 5))
+    xticks = np.linspace(1, len(doa_err_vec), num_xticks)
+    print(xticks)
+    plt.xticks(
+        xticks,
+        [f'{t:0.1f}' for t in np.linspace(np.min(snr_db_vec), np.max(snr_db_vec), num_xticks)],
+    )
+    plt.xlabel("SNR (dB)")
+    plt.ylabel("Angle error (deg.)")
+    plt.ylim([-2, 20])
+
+    print(f'SNR: {snr_db_vec}')
+    print(f'Mean absolute errors: {np.mean(doa_err_vec, axis=1) * 180 / np.pi}')
+
+    if not SAVE_PLOTS:
+        plt.draw()
+    else:
+        plt.savefig(filename, bbox_inches="tight", transparent=True)
+
+    if not SAVE_PLOTS:
         plt.show()
 
 
@@ -381,7 +495,7 @@ def test_noisy_target():
     #     f"Angular power spectrum after beamforming:\nfreq-range:[{f_min / 1000:0.1f}, {f_max / 1000:0.1f}] KHz, DoA-target: {doa_target * 180 / np.pi:0.2f} deg"
     # )
     plt.axvline(x=0., color="k", label="target DoA", linestyle=':')
-    plt.legend()
+    # plt.legend()
 
     if SAVE_PLOTS:
         plt.savefig(filename, bbox_inches="tight", transparent=True)
@@ -389,10 +503,10 @@ def test_noisy_target():
         plt.draw()
 
     # apply statistical analysis of the precision of DoA estimation
-    snr_db_vec = np.linspace(-10, 20, 20)
+    snr_db_vec = np.linspace(-10, 20, 11)
     # snr_db_vec = np.linspace(0,20, 5)
     angle_err = []
-    num_sim = 100
+    num_sim = 20
 
     test_duration = 1000e-3
     time_test = np.arange(0, test_duration, step=1 / fs)
@@ -623,7 +737,7 @@ def test_moving_target():
 
 def main():
     test_noisy_target()
-    # test_speech_target()
+    test_speech_target()
     # test_moving_target()
 
 
