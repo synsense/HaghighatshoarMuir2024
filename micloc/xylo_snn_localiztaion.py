@@ -170,6 +170,10 @@ class Demo:
         tau_mem_vec = torch.tensor(data=tau_mem_vec, dtype=torch.float32)
         tau_syn_vec = torch.tensor(data=tau_syn_vec, dtype=torch.float32)
 
+        # add recurrnet weights to neurons to make sure that the DC value of the membrane potential is set to zero
+        w_rec_coef = -0.1/num_ch_out
+        w_rec = w_rec_coef * torch.ones((num_ch_out, num_ch_out), dtype=torch.float32)
+
         # build the network NOTE: we add a dummy node at the end to make sure that we can deploy the netowrk and read
         # hidden layer outputs as canidates for rate encoding. NOTE: the number of neurons in hidden layer is equal
         # to the number of grid points in DoA estimation x number of frequency channels.
@@ -186,6 +190,8 @@ class Demo:
                 threshold=threshold,
                 tau_syn=tau_syn_vec,
                 tau_mem=tau_mem_vec,
+                has_rec=True,
+                w_rec=w_rec,
                 dt=target_dt,
             ),
             LinearTorch(
