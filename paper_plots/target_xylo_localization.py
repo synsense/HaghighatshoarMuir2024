@@ -58,6 +58,7 @@ def use_latex():
 
 
 SAVE_PLOTS = True
+num_sim = 100
 
 if SAVE_PLOTS:
     use_latex()
@@ -176,7 +177,7 @@ def test_speech_target():
     sig_test = np.sin(phase_inst)
 
     # - Load a speech sample
-    sig_test, samplefreq = sf.read('paper_plots/84-121123-0020.flac')
+    sig_test, samplefreq = sf.read('84-121123-0020.flac')
     time_test = np.arange(len(sig_test)) / samplefreq
     time_fs = np.linspace(time_test[0], time_test[-1], int(len(sig_test) / samplefreq * fs))
     sig_test = np.interp(time_fs, time_test, sig_test)
@@ -190,7 +191,7 @@ def test_speech_target():
     doa_target = 0.0
 
     # build the input signal from the template
-    sig_in = signal_from_template(template=(time_test, sig_test, doa_target), geometry=geometry)
+    sig_in = signal_from_template(template=(time_fs, sig_test, doa_target), geometry=geometry)
 
     # we work with SNR in bandwidth when only noise within the bandwidth is considered
     snr_gain_due_to_bandwidth = (fs / 2) / (f_max - f_min)
@@ -253,20 +254,19 @@ def test_speech_target():
     snr_db_vec = np.linspace(-10, 20, 11)
     # snr_db_vec = np.linspace(0,20, 5)
     angle_err = []
-    num_sim = 20
 
     # test_duration = 1000e-3
     # time_test = np.arange(0, test_duration, step=1 / fs)
     # sig_test = np.sin(2 * np.pi * freq_design * time_test)
 
-    # NOTE: use another signal for test since sinusoids at higher frequency can be problematic due to zero-crossing
-    # - use a chirp signal
-    f_min, f_max = freq_range
-    period = time_test[-1]
-    freq_inst = f_min + (f_max - f_min) * (time_test % period) / period
-    phase_inst = 2 * np.pi * np.cumsum(freq_inst) * 1 / fs
+    # # NOTE: use another signal for test since sinusoids at higher frequency can be problematic due to zero-crossing
+    # # - use a chirp signal
+    # f_min, f_max = freq_range
+    # period = time_test[-1]
+    # freq_inst = f_min + (f_max - f_min) * (time_test % period) / period
+    # phase_inst = 2 * np.pi * np.cumsum(freq_inst) * 1 / fs
 
-    sig_test = np.sin(phase_inst)
+    # sig_test = np.sin(phase_inst)
 
     print("\n", " statistical analysis ".center(150, "*"), "\n")
 
@@ -506,7 +506,6 @@ def test_noisy_target():
     snr_db_vec = np.linspace(-10, 20, 11)
     # snr_db_vec = np.linspace(0,20, 5)
     angle_err = []
-    num_sim = 20
 
     test_duration = 1000e-3
     time_test = np.arange(0, test_duration, step=1 / fs)
@@ -736,8 +735,8 @@ def test_moving_target():
 
 
 def main():
-    test_noisy_target()
     test_speech_target()
+    test_noisy_target()
     # test_moving_target()
 
 
