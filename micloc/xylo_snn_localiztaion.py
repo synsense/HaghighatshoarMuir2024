@@ -471,6 +471,8 @@ class Demo:
         print(" performing power measurement for localization in xylo a2 ".center(150, "+"))
         print("+" * 150)
 
+        clock_rate = 6.25
+
         # try to connect to hardware or check if it is already connected
         if not self.xylosim_version:
             # already connected to the hardware
@@ -483,10 +485,6 @@ class Demo:
             try:
                 hdk = hdks[0]
                 print('Xylo a2 HW found')
-
-                # set xylo clock rate (in MHz)
-                clock_rate = 50
-                hdu.set_xylo_core_clock_freq(device=hdk, desired_freq_MHz=clock_rate)
 
                 # build xylo-samna module -> the main goal is to to power measurement
                 xylo_config = self.xylo.config
@@ -502,6 +500,11 @@ class Demo:
                 print("there was an issue with Xylo a2 board! no power measurement was possible!")
                 return
 
+        # set xylo clock rate (in MHz)
+        clock_rate = hdu.set_xylo_core_clock_freq(device=self.xylo._device, desired_freq_MHz=clock_rate)
+
+        print(f'Network info: Input weights: {np.array(self.xylo.config.input.weights).shape} Hidden weights: {np.array(self.xylo.config.reservoir.weights).shape}')
+
         # now try to measure the power
         num_ch_in, _ = self.net[0].weight.shape
 
@@ -513,7 +516,7 @@ class Demo:
             )
 
         spk_rate = 1_000
-        T = 3_000
+        T = 48_000 * 2
         target_duration = T / self.fs
 
         spk_prob = spk_rate / self.fs
@@ -524,16 +527,20 @@ class Demo:
 
         print("spikes were pushed to the board and they are being processed ....")
         start = time.time()
-        out, state, rec = board(spikes_in, record=True, record_power=True)
+        _, _, rec = board(spikes_in, record=False, record_power=True)
         real_duration = time.time() - start
+
+        power_scale = real_duration / target_duration
+
         print("Done processing!")
+        print(f"Clock rate: {clock_rate}")
         print("real processing time on board: ", real_duration)
         print("expected processing time (for online demo) on board: ", target_duration)
+        print(f"Power scale factor: {power_scale}")
         print("\n\n")
 
         # considering the time it took for board to process how much scaling in speed and complexity is needed to run
         # localization online
-        power_scale = real_duration / target_duration
 
         power_measurement = dict()
         for key in rec.keys():
@@ -578,10 +585,10 @@ def run_demo(mode: str):
     kernel_duration = 10e-3
 
     # build the demo
-    bipolar_spikes = True
+    bipolar_spikes = False
 
     # use xylosim version for speedup
-    xylosim_version = True
+    xylosim_version = False
 
     demo = Demo(
         geometry=geometry,
@@ -607,7 +614,7 @@ def main():
     mode_list = ["visualization", "power_measurement"]
     mode = mode_list[0]
 
-    run_demo(mode=mode)
+    run_demo(mode='power_measurement')
 
 
 if __name__ == '__main__':
