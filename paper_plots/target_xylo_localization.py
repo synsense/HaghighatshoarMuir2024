@@ -13,7 +13,7 @@ import numpy as np
 import cvxpy as cp
 import soundfile as sf
 from micloc.array_geometry import ArrayGeometry, CenterCircularArray
-from micloc.xylo_snn_localiztaion import Demo
+from micloc.xylo_snn_localization import Demo
 from micloc.utils import Envelope
 import matplotlib.pyplot as plt
 import matplotlib
