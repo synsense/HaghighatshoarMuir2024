@@ -550,7 +550,7 @@ class Demo:
         num_ch_in, _ = self.net[2].weight.shape
 
         spk_rate = 1_000
-        duartion = 2
+        duartion = 2e-3
         T = int(self.fs * duartion)
         target_duration = T / self.fs
 
@@ -620,7 +620,8 @@ def run_demo(mode: str):
     kernel_duration = 10e-3
 
     # build the demo
-    bipolar_spikes = False
+    # NOTE: we decide to continue with bipolar spikes since the unipolar spikes did not produces reasonale results
+    bipolar_spikes = True
 
     # use xylosim version for speedup
     xylosim_version = False
