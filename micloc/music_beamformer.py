@@ -7,7 +7,7 @@
 # email: saeid.haghighatshoar@synsense.ai
 #
 #
-# last update: 27.10.2023
+# last update: 25.01.2024
 # ----------------------------------------------------------------------------------------------------------------------
 from micloc.array_geometry import ArrayGeometry
 from micloc.filterbank import ButterworthFilterbank
@@ -71,20 +71,23 @@ class MUSIC:
 
         return arr_resp_vec
 
-    def beamforming(self, sig_in: np.ndarray, num_active_freq: int) -> np.ndarray:
-        """this function decomposes the input signal into its narrowband components and applies narrowband beamforming
-        to `num_active_freq` dominant frequencies and accumulates the power to produce angular power spectrum.
+    def beamforming(self, sig_in: np.ndarray, num_active_freq: int, num_fft_bin: int) -> np.ndarray:
+        """this function decomposes the input signal (typically a signal received over a frame) into its narrowband components and applies 
+        narrowband beamforming to `num_active_freq` dominant frequencies and accumulates the power to produce angular power spectrum.
 
         Args:
             sig_in (np.ndarray): input signal of dim `T x num_mic`.
             num_active_freq (int): number of active/dominant frequencies in the spectrum (frequency range) of the signal
             in which beamforming is going to be applied.
+            num_fft_bin (int): length of FFT frame in time used for decomposing the signal into its narrowband components.
+            NOTE: If `num_fft_bin` is less than signal length, the signal is decomposed into several sub-frames, beamforming is done within each
+            sub-frame and then the powers are aggregated to compute the power spectral density.
 
         Returns:
             np.ndarray: angular power spectrum of dim `num_DoA` illustrating the received power distribution from various DoAs.
         """
         # do some sanity check
-        min_freq_spacing = 1 / self.frame_duration
+        min_freq_spacing = self.fs / num_fft_bin
         fmin, fmax = self.freq_range
         max_num_freq = int((fmax - fmin) / min_freq_spacing)
 
@@ -98,25 +101,46 @@ class MUSIC:
             raise ValueError("input signal should be of dim `T x num_mic`!")
 
         # apply filtering to reduce the spectrum of the signal
-        # NOTE: since there is a singel filter in the filterbank, we choose the first output!
+        # NOTE: since there is a single filter in the filterbank, we choose the first output!
+        # the output should be T x num_chan
         sig_in_filt = self.filterbank(sig_in)[0]
 
         # choose fft bins within signal spectrum
         # we assume that the signal is real-valued and apply conjugate symmetry
-        num_fft_bins = int(self.frame_duration * self.fs)
-        freq_vec = np.linspace(0, self.fs, num_fft_bins)
+        freq_vec = np.linspace(0, self.fs, num_fft_bin)
+
+        # NOTE: since the signal length can be larger/smaller than FFT frame szie we need to:
+        # (i) adjust the length
+        # (ii) aggregate power over many FFT frames to imporve the estimation precision of power spectral density
+        num_fft_frames = T//num_fft_bin
+
+        if num_fft_frames == 0:
+            # we zeropad when signal is shorter than FFT length otherwise we truncate the signal
+            # to avoid the edge effect of incomplete frames
+            num_fft_frames = 1
+
+        sig_fft_len = num_fft_frames * num_fft_bin
+
+        sig_in_filt_adj = np.zeros((sig_fft_len, num_chan))
+        sig_in_filt_adj[:sig_fft_len, :] = sig_in_filt[:sig_fft_len, :]
+
+        
+        # reshape the signal into frames and apply FFT in each frame
+        # NOTE: we first need to apply transpose to transfer the channel indexing to the initial location
+        sig_in_fft = np.fft.fft(sig_in_filt_adj.T.reshape(num_chan, num_fft_frames, num_fft_bin), n=num_fft_bin, axis=-1)
 
         # apply fft and select fft bins within signal spectrum
         fft_bin_index = (fmin <= freq_vec) & (freq_vec <= fmax)
-        sig_in_fft_selected = np.fft.fft(sig_in_filt, n=num_fft_bins, axis=0)[fft_bin_index, :]
+        sig_in_fft_selected = sig_in_fft[:,:,fft_bin_index]
         freq_vec_selected = freq_vec[fft_bin_index]
 
         # compute the signal energy at the given frequencies and choose dominant ones
-        power_in_freq = np.mean(np.abs(sig_in_fft_selected) ** 2, axis=1)
+        # NOTE: averaging is done across all input channels and FFT frames
+        power_in_freq = np.mean(np.abs(sig_in_fft_selected) ** 2, axis=(0,1))
         max_power_indices = np.argsort(power_in_freq)[-num_active_freq:]
 
         max_power_freq_vec = freq_vec_selected[max_power_indices]
-        max_power_sig_in_fft = sig_in_fft_selected[max_power_indices, :]
+        max_power_sig_in_fft = sig_in_fft_selected[:,:, max_power_indices]
 
         # compute array response vectors at active frequencies
         # dim: `num_active_freq x num_mic x num_DoA`
@@ -125,7 +149,10 @@ class MUSIC:
         # compute angular power spectrum
         ang_pow_spec = 0
         for idx, _ in enumerate(max_power_freq_vec):
-            ang_pow_spec_freq = np.abs(np.conj(arr_resp[idx]).T @ max_power_sig_in_fft[idx]) ** 2
+            # beamforming is done across first index -> corresponding to input channels in signal (e.g., microphones)
+            # since bemaforming matrices are different for different frequencies we need to treat them separately
+            # output will be `num_DoA x num_fft_frames` at each frequency
+            ang_pow_spec_freq = np.mean(np.abs(np.conj(arr_resp[idx]).T @ max_power_sig_in_fft[:,:,idx]) ** 2, axis=-1)
 
             # accumulate the power
             ang_pow_spec += ang_pow_spec_freq
@@ -133,16 +160,19 @@ class MUSIC:
         # return the `num_DoA` dim angular power spectrum of the signal across DoAs
         return ang_pow_spec
 
-    def apply_to_signal(self, sig_in: np.ndarray, num_active_freq: int, duration_overlap: float) -> np.ndarray:
-        """this function applies beamforming to overlapping signal windows and returns the estimated angular power spectrum.
+    def apply_to_signal(self, sig_in: np.ndarray, num_active_freq: int, duration_overlap: float, num_fft_bin: int) -> np.ndarray:
+        """this function applies beamforming to overlapping signal frames and returns the estimated angular power spectrum.
+        NOTE: since active frequencies in each frame may change, the estimated power spectrum may have jumps from one frame to 
+        the next depending on how signal power changes.
 
         Args:
-            sig_in (np.ndarray): input signal
-            num_active_freq (int): number of active/dominant frequencies in signal spectrum on which the beamforming is going to be applied.
+            sig_in (np.ndarray): input signal.
+            num_active_freq (int): number of active/dominant frequencies in signal spectrum on which the beamforming is going to be applied in each frame.
             duration_overlap (float): how much overlap in seconds between consecutive signal frames is allowed.
+            num_fft_bin (int): length of FFT frame in time used for decomposing the signal into its narrowband components.
 
         Returns:
-            np.ndarray: angular power spectrum computed in time.
+            np.ndarray: angular power spectrum computed in time over each frame.
         """
         # some sanity check
         T, num_chan = sig_in.shape
@@ -168,7 +198,7 @@ class MUSIC:
             end_idx = idx_slice * num_samples_fresh + num_samples_frame
 
             sig_in_slice = sig_in[start_idx:end_idx, :]
-            ang_pow_spec_slice = self.beamforming(sig_in=sig_in_slice, num_active_freq=num_active_freq)
+            ang_pow_spec_slice = self.beamforming(sig_in=sig_in_slice, num_active_freq=num_active_freq, num_fft_bin=num_fft_bin)
 
             angular_power_spectrum.append(ang_pow_spec_slice)
 
@@ -179,7 +209,7 @@ class MUSIC:
 
         if (T-start_idx)>0.5*num_samples_frame:
             sig_in_slice = sig_in[start_idx:T, :]
-            ang_pow_spec_slice = self.beamforming(sig_in=sig_in_slice, num_active_freq=num_active_freq)
+            ang_pow_spec_slice = self.beamforming(sig_in=sig_in_slice, num_active_freq=num_active_freq, num_fft_bin=num_fft_bin)
 
             angular_power_spectrum.append(ang_pow_spec_slice)
 
@@ -188,7 +218,7 @@ class MUSIC:
         return angular_power_spectrum
 
     def apply_to_template(self, template: Tuple[np.ndarray, np.ndarray, Union[Number, np.ndarray]],
-                          num_active_freq: int, duration_overlap: float,
+                          num_active_freq: int, duration_overlap: float, num_fft_bin: int,
                           snr_db: float) -> np.ndarray:
         """
         this module applies beamforming when the array receives a given template [time_temp, sig_temp, doa_temp] and returns the estimated angular power spectrum.
@@ -197,6 +227,7 @@ class MUSIC:
             template Tuple[np.ndarray, np.ndarray, Union[Number, np.ndarray]]): input template signal consisting of time-of-arrival, signal samples and direction of arrival.
             num_active_freq (int): number of dominant/active frequencies over which the beamforming should be carried out.
             duration_overlap (float): how much overlap (in sec) between consecutive frames is allowed.
+            num_fft_bin (int): length of FFT frame in time used for decomposing the signal into its narrowband components.
             snr_db (float): signal-to-noise ratio at each array element (microphone).
 
         Returns:
@@ -238,7 +269,7 @@ class MUSIC:
 
         # estimate angular power spectrum in time
         ang_pow_spec = self.apply_to_signal(sig_in=sig_in_vec, num_active_freq=num_active_freq,
-                                            duration_overlap=duration_overlap)
+                                            duration_overlap=duration_overlap, num_fft_bin=num_fft_bin)
 
         return ang_pow_spec
 

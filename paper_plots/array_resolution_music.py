@@ -6,7 +6,7 @@
 # email: saeid.haghighatshoar@synsense.ai
 #
 #
-# last update: 27.10.2023
+# last update: 25.01.2024
 # ----------------------------------------------------------------------------------------------------------------------
 from operator import ge
 import numpy as np
@@ -54,7 +54,7 @@ def use_latex():
     plt.rc("figure", titlesize=SMALL_SIZE)  # fontsize of the figure title
 
 
-SAVE_PLOTS = True
+SAVE_PLOTS = False
 
 if SAVE_PLOTS:
     use_latex()
@@ -103,6 +103,7 @@ def array_resolution_sin():
     # build beamformer matrix for various DoAs
     # 1. build a template signal
     duration = 0.4
+    num_fft_bin = 2048
     freq_design_vec = [1000, 2000, 3600, 4000, 8000]
 
     # use an angular grid
@@ -125,14 +126,14 @@ def array_resolution_sin():
 
         ## compute two beampatterns
         ang_pow_spec1 = beamf.apply_to_template(template=[time_temp, sig_temp, 0], num_active_freq=num_active_freq,
-                                                duration_overlap=0.0, snr_db=1000)
+                                                duration_overlap=0.0, num_fft_bin=num_fft_bin, snr_db=1000)
 
         # accumulate all angular power spectrum in tim
         beam_pattern1 = ang_pow_spec1.mean(0)
         beam_pattern1 = beam_pattern1 / beam_pattern1.max()
 
         ang_pow_spec2 = beamf.apply_to_template(template=[time_temp, sig_temp, np.pi / 2],
-                                                num_active_freq=num_active_freq, duration_overlap=0.0, snr_db=1000)
+                                                num_active_freq=num_active_freq, duration_overlap=0.0, num_fft_bin=num_fft_bin, snr_db=1000)
 
         # accumulate all angular power spectrum in tim
         beam_pattern2 = ang_pow_spec2.mean(0)

@@ -6,7 +6,7 @@
 # email: saeid.haghighatshoar@synsense.ai
 #
 #
-# last update: 31.10.2023
+# last update: 25.01.2024
 # ----------------------------------------------------------------------------------------------------------------------
 import numpy as np
 
@@ -169,6 +169,7 @@ def music_multiple_targets_sin():
 
     # duration of signal and sample frequencies
     duration = 0.4
+    num_fft_bin = 2048
     freq_design_vec = [1000, 2000, 3600, 4000, 8000]
 
     # how many targets: their doa and power level
@@ -215,7 +216,7 @@ def music_multiple_targets_sin():
         num_active_freq = 1  # just choose the strongest one
         duration_overlap = 0.0  # oneshot MUSIC
         sig_bf = music.apply_to_signal(sig_in=sig_in, num_active_freq=num_active_freq,
-                                       duration_overlap=duration_overlap)
+                                       duration_overlap=duration_overlap, num_fft_bin=num_fft_bin)
 
         # compute the power along different DoAs in the grid
         power_bf = np.mean(np.abs(sig_bf) ** 2, axis=0)
@@ -266,6 +267,7 @@ def music_multiple_targets_wideband():
 
     # duration of signal and sample frequencies
     duration = 0.4
+    num_fft_bin = 2048
     freq_design_vec = [1000, 2000, 3600, 4000, 8000]
     bandwidth = 1000
 
@@ -324,7 +326,7 @@ def music_multiple_targets_wideband():
         num_active_freq = 2  # just choose the strongest one or we may choose multiple frequencies since each target can be strong in one
         duration_overlap = duration / 4  # oneshot MUSIC
         sig_bf = music.apply_to_signal(sig_in=sig_in, num_active_freq=num_active_freq,
-                                       duration_overlap=duration_overlap)
+                                       duration_overlap=duration_overlap, num_fft_bin=num_fft_bin)
 
         # compute the power along different DoAs in the grid
         power_bf = np.mean(np.abs(sig_bf) ** 2, axis=0)

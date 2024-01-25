@@ -7,7 +7,7 @@
 # email: saeid.haghighatshoar@synsense.ai
 #
 #
-# last update: 27.10.2023
+# last update: 25.01.2024
 # ----------------------------------------------------------------------------------------------------------------------
 from archive.record import AudioRecorder
 from micloc.visualizer import Visualizer
@@ -19,7 +19,7 @@ import numpy as np
 
 class Demo:
     def __init__(self, geometry: ArrayGeometry, freq_range: np.ndarray, num_active_freq: int, doa_list: np.ndarray,
-                 recording_duration: float = 0.25, fs: float = 48_000):
+                 recording_duration: float = 0.25, num_fft_bin: int = 2048, fs: float = 48_000):
         """
         this module builds a MUSIC beamformer for localization.
 
@@ -30,6 +30,7 @@ class Demo:
             doa_list (np.ndarray): an array containing a grid of DoAs to be covered during localization.
             recording_duration (float): duration of each frame of recording of signal on which MUSIC is applied. Deafults to 0.25 sec (250 ms).
             NOTE: during beamforming one can use overlapping frames if needed.
+            num_fft_bin (int): number of FFT bins used in MUSIC. Defaults to 2048.
             fs (float): sampling period of the board.
         """
 
@@ -41,6 +42,7 @@ class Demo:
         self.doa_list = doa_list
         self.num_active_freq = num_active_freq
         self.recording_duration = recording_duration
+        self.num_fft_bin = num_fft_bin
         self.fs = fs
 
     def estimate_doa(self, angular_power_spec: np.ndarray, method: str) -> float:
@@ -149,7 +151,7 @@ class Demo:
                 # there is activity
 
                 # compute the angular power spectrum of the input signal
-                ang_pow_spec = self.music.beamforming(sig_in=data, num_active_freq=self.num_active_freq)
+                ang_pow_spec = self.music.beamforming(sig_in=data, num_active_freq=self.num_active_freq, num_fft_bin=self.num_fft_bin)
 
                 # simplest method for estimating DoA
                 method_list = ["peak", "periodic_ml", "trimmed_periodic_ml"]
@@ -181,11 +183,12 @@ def run_demo():
     num_active_freq = 100
 
     # grid of DoAs
-    num_grid = 32 * num_mic
+    num_grid = 32 * num_mic + 1
     doa_list = np.linspace(-np.pi, np.pi, num_grid)
 
     # duration of recording in each section
     frame_duration = 0.25
+    num_fft_bin = 2048 
     fs = 48_000
 
     demo = Demo(
@@ -194,6 +197,7 @@ def run_demo():
         num_active_freq=num_active_freq,
         doa_list=doa_list,
         recording_duration=frame_duration,
+        num_fft_bin=num_fft_bin,
         fs=fs
     )
 
