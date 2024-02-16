@@ -36,7 +36,7 @@ def test_record():
     print("power per channels: ", power_per_channel)
 
     num_sample, dim = audio.shape
-    time_vec = np.arange(num_sample)/fs
+    time_vec = np.arange(num_sample) / fs
 
     plt.plot(time_vec, audio)
     plt.xlabel("time (sec)")
@@ -49,5 +49,5 @@ def main():
     test_record()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

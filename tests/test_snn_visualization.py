@@ -57,8 +57,12 @@ def test_snn_visualizer():
         waiting_time=2,
     )
 
-    vz.start(figsize=(16, 10), xlabel="time", ylabel="power of voice",
-             title="power of voice signal received from microphone")
+    vz.start(
+        figsize=(16, 10),
+        xlabel="time",
+        ylabel="power of voice",
+        title="power of voice signal received from microphone",
+    )
 
     while True:
         # get the new data from microphones
@@ -81,5 +85,5 @@ def main():
     test_snn_visualizer()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

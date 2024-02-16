@@ -33,10 +33,10 @@ def use_latex():
             "axes.linewidth": 0.5,
             "lines.linewidth": 1.0,
             "grid.linewidth": 0.5,
-            'xtick.major.width': 0.5,
-            'ytick.major.width': 0.5,
-            'xtick.major.size': 2,
-            'ytick.major.size': 2,
+            "xtick.major.width": 0.5,
+            "ytick.major.width": 0.5,
+            "xtick.major.size": 2,
+            "ytick.major.size": 2,
             #     "pgf.texsystem": "xelatex",
             #     "font.family": "Helvetica",
             #     "text.usetex": True,
@@ -84,8 +84,13 @@ def plot_beampattern(doa_list, power_profile, title, filename):
         plt.draw()
 
 
-def signal_multiple_targets(geometry: ArrayGeometry, time_temp: np.ndarray, sig_temp: np.ndarray,
-                            doa_timeseries_targets: List[List[float]], power_timeseries_targets: List[List[float]]):
+def signal_multiple_targets(
+    geometry: ArrayGeometry,
+    time_temp: np.ndarray,
+    sig_temp: np.ndarray,
+    doa_timeseries_targets: List[List[float]],
+    power_timeseries_targets: List[List[float]],
+):
     """this function computes the input signal
 
     Args:
@@ -99,7 +104,9 @@ def signal_multiple_targets(geometry: ArrayGeometry, time_temp: np.ndarray, sig_
     # some sanity check
     T = len(time_temp)
     if T != len(sig_temp):
-        raise ValueError("time vector and input signal should have the same dimensions!")
+        raise ValueError(
+            "time vector and input signal should have the same dimensions!"
+        )
 
     doa_timeseries_targets = np.asarray(doa_timeseries_targets)
     power_timeseries_targets = np.asarray(power_timeseries_targets)
@@ -114,10 +121,14 @@ def signal_multiple_targets(geometry: ArrayGeometry, time_temp: np.ndarray, sig_
     T_power, num_targets_power = power_timeseries_targets.shape
 
     if num_targets_doa != num_targets_power:
-        raise ValueError("number of targets should be the same in doa and power vector!")
+        raise ValueError(
+            "number of targets should be the same in doa and power vector!"
+        )
 
     if T_doa != T_power or T_doa != T:
-        raise ValueError("input signal, doa, and power vectors should have the same dimension!")
+        raise ValueError(
+            "input signal, doa, and power vectors should have the same dimension!"
+        )
 
     num_targets = num_targets_doa
 
@@ -125,13 +136,20 @@ def signal_multiple_targets(geometry: ArrayGeometry, time_temp: np.ndarray, sig_
 
     for idx in range(num_targets):
         # compute the delay at doas: output `T x num_mic`
-        delay_vec = np.asarray([geometry.delays(doa, normalized=False) for doa in doa_timeseries_targets[:, idx]])
+        delay_vec = np.asarray(
+            [
+                geometry.delays(doa, normalized=False)
+                for doa in doa_timeseries_targets[:, idx]
+            ]
+        )
 
         # compute time-delayed vec: output `T x num_mic`
         time_vec = time_temp.reshape(-1, 1) + delay_vec
 
         # interpolate the signal -> output `T x num_mic`
-        sig_target = np.interp(time_vec.ravel(), time_temp, sig_temp).reshape(*time_vec.shape)
+        sig_target = np.interp(time_vec.ravel(), time_temp, sig_temp).reshape(
+            *time_vec.shape
+        )
 
         # apply the power scaling: output `T x num_mic`
         sig_target = power_timeseries_targets[:, idx].reshape(-1, 1) * sig_target
@@ -145,12 +163,15 @@ def signal_multiple_targets(geometry: ArrayGeometry, time_temp: np.ndarray, sig_
 #                                simulations
 # ===========================================================================
 
+
 def beamformer_multiple_targets_sin():
     """
     this function computes the localization performance when there are several targets.
     """
     # find the directory for this file
-    root = os.path.join(Path(__file__).resolve().parent, "beamformer_multiple_targets_sin")
+    root = os.path.join(
+        Path(__file__).resolve().parent, "beamformer_multiple_targets_sin"
+    )
 
     if not os.path.exists(root):
         os.mkdir(root)
@@ -239,7 +260,9 @@ def beamformer_multiple_targets_sin():
         # plt.legend()
         # plt.draw()
 
-        plot_beampattern(doa_list, power_bf, f"$F= {freq_design / 1000:0.0f}$ kHz", filename)
+        plot_beampattern(
+            doa_list, power_bf, f"$F= {freq_design / 1000:0.0f}$ kHz", filename
+        )
 
     if not SAVE_PLOTS:
         plt.show()
@@ -330,7 +353,7 @@ def beamformer_multiple_targets_wideband():
         sig_bf = beamf.apply_to_signal(bf_mat=bf_mat, sig_in=sig_in)
 
         # compute the power along different DoAs in the grid
-        power_bf = np.mean(sig_bf ** 2, axis=0)
+        power_bf = np.mean(sig_bf**2, axis=0)
 
         # apply normalization
         power_bf = power_bf / power_bf.max()
@@ -354,7 +377,12 @@ def beamformer_multiple_targets_wideband():
             root, f"multiple_targets_beamformer_wideband_center_freq={center_freq}.pdf"
         )
 
-        plot_beampattern(doa_list, power_bf, f"$F_c= {center_freq / 1000:0.0f}$ kHz, $B={bandwidth / 1000:0.0f}$ kHz", filename)
+        plot_beampattern(
+            doa_list,
+            power_bf,
+            f"$F_c= {center_freq / 1000:0.0f}$ kHz, $B={bandwidth / 1000:0.0f}$ kHz",
+            filename,
+        )
 
     if not SAVE_PLOTS:
         plt.show()

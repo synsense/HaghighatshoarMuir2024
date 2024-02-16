@@ -33,10 +33,10 @@ def use_latex():
             "axes.linewidth": 0.5,
             "lines.linewidth": 1.0,
             "grid.linewidth": 0.5,
-            'xtick.major.width': 0.5,
-            'ytick.major.width': 0.5,
-            'xtick.major.size': 2,
-            'ytick.major.size': 2,
+            "xtick.major.width": 0.5,
+            "ytick.major.width": 0.5,
+            "xtick.major.size": 2,
+            "ytick.major.size": 2,
             #     "pgf.texsystem": "xelatex",
             #     "font.family": "Helvetica",
             #     "text.usetex": True,
@@ -84,8 +84,13 @@ def plot_beampattern(doa_list, power_profile, title, filename):
         plt.draw()
 
 
-def signal_multiple_targets(geometry: ArrayGeometry, time_temp: np.ndarray, sig_temp: np.ndarray,
-                            doa_timeseries_targets: List[List[float]], power_timeseries_targets: List[List[float]]):
+def signal_multiple_targets(
+    geometry: ArrayGeometry,
+    time_temp: np.ndarray,
+    sig_temp: np.ndarray,
+    doa_timeseries_targets: List[List[float]],
+    power_timeseries_targets: List[List[float]],
+):
     """this function computes the input signal
 
     Args:
@@ -99,7 +104,9 @@ def signal_multiple_targets(geometry: ArrayGeometry, time_temp: np.ndarray, sig_
     # some sanity check
     T = len(time_temp)
     if T != len(sig_temp):
-        raise ValueError("time vector and input signal should have the same dimensions!")
+        raise ValueError(
+            "time vector and input signal should have the same dimensions!"
+        )
 
     doa_timeseries_targets = np.asarray(doa_timeseries_targets)
     power_timeseries_targets = np.asarray(power_timeseries_targets)
@@ -114,10 +121,14 @@ def signal_multiple_targets(geometry: ArrayGeometry, time_temp: np.ndarray, sig_
     T_power, num_targets_power = power_timeseries_targets.shape
 
     if num_targets_doa != num_targets_power:
-        raise ValueError("number of targets should be the same in doa and power vector!")
+        raise ValueError(
+            "number of targets should be the same in doa and power vector!"
+        )
 
     if T_doa != T_power or T_doa != T:
-        raise ValueError("input signal, doa, and power vectors should have the same dimension!")
+        raise ValueError(
+            "input signal, doa, and power vectors should have the same dimension!"
+        )
 
     num_targets = num_targets_doa
 
@@ -125,13 +136,20 @@ def signal_multiple_targets(geometry: ArrayGeometry, time_temp: np.ndarray, sig_
 
     for idx in range(num_targets):
         # compute the delay at doas: output `T x num_mic`
-        delay_vec = np.asarray([geometry.delays(doa, normalized=False) for doa in doa_timeseries_targets[:, idx]])
+        delay_vec = np.asarray(
+            [
+                geometry.delays(doa, normalized=False)
+                for doa in doa_timeseries_targets[:, idx]
+            ]
+        )
 
         # compute time-delayed vec: output `T x num_mic`
         time_vec = time_temp.reshape(-1, 1) - delay_vec
 
         # interpolate the signal -> output `T x num_mic`
-        sig_target = np.interp(time_vec.ravel(), time_temp, sig_temp).reshape(*time_vec.shape)
+        sig_target = np.interp(time_vec.ravel(), time_temp, sig_temp).reshape(
+            *time_vec.shape
+        )
 
         # apply the power scaling: output `T x num_mic`
         sig_target = power_timeseries_targets[:, idx].reshape(-1, 1) * sig_target
@@ -144,6 +162,7 @@ def signal_multiple_targets(geometry: ArrayGeometry, time_temp: np.ndarray, sig_
 # ===========================================================================
 #                               simulations
 # ===========================================================================
+
 
 def music_multiple_targets_sin():
     """
@@ -215,8 +234,12 @@ def music_multiple_targets_sin():
         # apply all SNN signal processing chain to input signal
         num_active_freq = 1  # just choose the strongest one
         duration_overlap = 0.0  # oneshot MUSIC
-        sig_bf = music.apply_to_signal(sig_in=sig_in, num_active_freq=num_active_freq,
-                                       duration_overlap=duration_overlap, num_fft_bin=num_fft_bin)
+        sig_bf = music.apply_to_signal(
+            sig_in=sig_in,
+            num_active_freq=num_active_freq,
+            duration_overlap=duration_overlap,
+            num_fft_bin=num_fft_bin,
+        )
 
         # compute the power along different DoAs in the grid
         power_bf = np.mean(np.abs(sig_bf) ** 2, axis=0)
@@ -237,7 +260,9 @@ def music_multiple_targets_sin():
         # plt.legend()
         # plt.draw()
 
-        plot_beampattern(doa_list, power_bf, f"$F= {freq_design / 1000:0.0f}$ kHz", filename)
+        plot_beampattern(
+            doa_list, power_bf, f"$F= {freq_design / 1000:0.0f}$ kHz", filename
+        )
 
     if not SAVE_PLOTS:
         plt.show()
@@ -278,7 +303,9 @@ def music_multiple_targets_wideband():
 
     for freq_design in tqdm(freq_design_vec):
         # design a specific beamformer
-        freq_range = np.asarray([freq_design - bandwidth / 2, freq_design + bandwidth / 2])
+        freq_range = np.asarray(
+            [freq_design - bandwidth / 2, freq_design + bandwidth / 2]
+        )
 
         # number of active frequencies
         music = MUSIC(
@@ -325,8 +352,12 @@ def music_multiple_targets_wideband():
         # apply all SNN signal processing chain to input signal
         num_active_freq = 2  # just choose the strongest one or we may choose multiple frequencies since each target can be strong in one
         duration_overlap = duration / 4  # oneshot MUSIC
-        sig_bf = music.apply_to_signal(sig_in=sig_in, num_active_freq=num_active_freq,
-                                       duration_overlap=duration_overlap, num_fft_bin=num_fft_bin)
+        sig_bf = music.apply_to_signal(
+            sig_in=sig_in,
+            num_active_freq=num_active_freq,
+            duration_overlap=duration_overlap,
+            num_fft_bin=num_fft_bin,
+        )
 
         # compute the power along different DoAs in the grid
         power_bf = np.mean(np.abs(sig_bf) ** 2, axis=0)
@@ -347,7 +378,9 @@ def music_multiple_targets_wideband():
         # plt.legend()
         # plt.draw()
 
-        plot_beampattern(doa_list, power_bf, f"$F= {freq_design / 1000:0.0f}$ kHz", filename)
+        plot_beampattern(
+            doa_list, power_bf, f"$F= {freq_design / 1000:0.0f}$ kHz", filename
+        )
 
     if not SAVE_PLOTS:
         plt.show()

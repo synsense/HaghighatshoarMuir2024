@@ -48,7 +48,6 @@ def use_latex():
     plt.rc("figure", titlesize=SMALL_SIZE)  # fontsize of the figure title
 
 
-
 SAVE_PLOTS = True
 
 if SAVE_PLOTS:
@@ -71,16 +70,15 @@ def plot_RZCC():
     sig_len = int(fs * sig_duration)
     time_vec = np.linspace(0, sig_duration, sig_len)
 
-    mm = 1/25.4
-
+    mm = 1 / 25.4
 
     plt.show()
 
     for freq in tqdm(freq_list):
         filename = os.path.join(root, f"rzcc_freq={freq}Hz.pdf")
-        
-        mm = 1/25.4
-        
+
+        mm = 1 / 25.4
+
         sig_in = np.cos(2 * np.pi * freq * time_vec)
         # Make a spike encoder
         freq_range = [freq / 2, 2 * freq]
@@ -97,17 +95,17 @@ def plot_RZCC():
 
         plt.plot(time_vec * 1e3, sig_in, label="input signal")
 
-        plt.plot(time_vec * 1e3, np.cumsum(sig_in) / 10 - 3.5, 'C0--')
+        plt.plot(time_vec * 1e3, np.cumsum(sig_in) / 10 - 3.5, "C0--")
 
-        plt.plot(0.5 + robust_width * np.array([-1, 1]) / fs * 1e3, [-1.5, -1.5], 'k-')
+        plt.plot(0.5 + robust_width * np.array([-1, 1]) / fs * 1e3, [-1.5, -1.5], "k-")
 
         # plt.plot(spikes)
-        plt.stem(time_vec * 1e3, spikes[:, 0]/2, 'C3-', markerfmt='', basefmt='none')
+        plt.stem(time_vec * 1e3, spikes[:, 0] / 2, "C3-", markerfmt="", basefmt="none")
 
-        plt.plot(time_vec[[0, -1]] * 1e3, [0, 0], 'k:')
+        plt.plot(time_vec[[0, -1]] * 1e3, [0, 0], "k:")
         # plt.legend()
         plt.grid(False)
-        plt.axis('off')
+        plt.axis("off")
         # plt.xlabel("Time (ms)")
         # plt.ylabel("Amplitude")
         # plt.title(
@@ -118,7 +116,6 @@ def plot_RZCC():
             plt.savefig(filename, bbox_inches="tight", transparent=True)
         else:
             plt.draw()
-
 
         print(
             f"simulation was done for freq: {freq} and plot was saved in file:{filename}"

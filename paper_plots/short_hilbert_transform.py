@@ -48,8 +48,6 @@ def use_latex():
     plt.rc("figure", titlesize=SMALL_SIZE)  # fontsize of the figure title
 
 
-
-
 SAVE_PLOTS = True
 
 if SAVE_PLOTS:
@@ -94,14 +92,14 @@ def plot_STHT():
     w[w >= fs / 2] = w[w >= fs / 2] - fs
 
     # print the kernel
-    mm = 1/25.4
+    mm = 1 / 25.4
 
-    plt.figure(figsize=[70*mm, 90*mm])
+    plt.figure(figsize=[70 * mm, 90 * mm])
     filename = os.path.join(root, "kernel.pdf")
 
     plt.subplot(211)
     plt.plot(np.arange(0, len(ker_h)) / fs * 1000, ker_h)
-    plt.plot([0, len(ker_h) / fs * 1000], [0, 0], 'k:')
+    plt.plot([0, len(ker_h) / fs * 1000], [0, 0], "k:")
     plt.xlabel("Time (ms)")
     plt.ylabel("STHT Kernel")
     plt.title(
@@ -125,20 +123,24 @@ def plot_STHT():
 
     for freq in tqdm(freq_list):
         filename = os.path.join(root, f"freq={freq}Hz.pdf")
-        
-        mm = 1/25.4
-        
+
+        mm = 1 / 25.4
+
         plt.figure(figsize=[70 * mm, 45 * mm])
 
-        sig_in = np.sin(2 * np.pi * freq * time_vec) + np.random.normal(scale = 0.025, size = len(time_vec))
+        sig_in = np.sin(2 * np.pi * freq * time_vec) + np.random.normal(
+            scale=0.025, size=len(time_vec)
+        )
         sig_h = sig_in + 1j * lfilter(ker_h, [1], sig_in)
 
         sig_hilbert = hilbert(sig_in)
 
         plt.plot(time_vec * 1e3, np.real(sig_h), label="STHT-I <= input signal")
-        plt.plot(time_vec * 1e3, np.imag(sig_h), color = 'C1', label="STHT-Q")
-        plt.plot(time_vec * 1e3, np.imag(sig_hilbert), '--', color = 'black', label="Hilbert-Q")
-        plt.plot(time_vec[[0, -1]] * 1e3, [0, 0], 'k:')
+        plt.plot(time_vec * 1e3, np.imag(sig_h), color="C1", label="STHT-Q")
+        plt.plot(
+            time_vec * 1e3, np.imag(sig_hilbert), "--", color="black", label="Hilbert-Q"
+        )
+        plt.plot(time_vec[[0, -1]] * 1e3, [0, 0], "k:")
         # plt.legend()
         plt.grid(False)
         plt.xlabel("Time (ms)")
@@ -164,18 +166,18 @@ def plot_STHT():
         sig_cat = np.stack([np.real(sig_h), np.imag(sig_h)])
         spikes = rzcc.evolve(sig_cat.T)
         # spikes[spikes < 0] = 0
-        
+
         # plt.plot(spikes)
-        plt.stem(time_vec * 1e3, -spikes[:, 0], 'C0-', markerfmt='', basefmt='none')
-        plt.stem(time_vec * 1e3, -spikes[:, 1], 'C1-', markerfmt='', basefmt='none')
+        plt.stem(time_vec * 1e3, -spikes[:, 0], "C0-", markerfmt="", basefmt="none")
+        plt.stem(time_vec * 1e3, -spikes[:, 1], "C1-", markerfmt="", basefmt="none")
         plt.grid(False)
         plt.xlabel("Time (ms)")
         plt.yticks([])
-        plt.axis('off')
+        plt.axis("off")
         # plt.ylabel("Amplitude")
-        
+
         filename = os.path.join(root, f"spikes_freq={freq}Hz.pdf")
-        plt.savefig(f"{filename}", bbox_inches = "tight", transparent=True)
+        plt.savefig(f"{filename}", bbox_inches="tight", transparent=True)
 
         print(
             f"simulation was done for freq: {freq} and plot was saved in file:{filename}"

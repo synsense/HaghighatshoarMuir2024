@@ -22,9 +22,15 @@ Fs = 48_000
 
 
 class SNNBeamformer:
-    def __init__(self, geometry: ArrayGeometry, kernel_duration: float, freq_range: np.ndarray,
-                 tau_vec: np.ndarray, bipolar_spikes: bool = False,
-                 fs: float = Fs):
+    def __init__(
+        self,
+        geometry: ArrayGeometry,
+        kernel_duration: float,
+        freq_range: np.ndarray,
+        tau_vec: np.ndarray,
+        bipolar_spikes: bool = False,
+        fs: float = Fs,
+    ):
         """
         this class implements an algorithm for building beamforming matrices in multi-mic arrays when the input is spiky.
         Args:
@@ -55,19 +61,27 @@ class SNNBeamformer:
             if f_low > f_high:
                 raise Exception()
         except Exception:
-            raise ValueError("freq_range should be a vector consisting of two frequencies f_low < f_high!")
+            raise ValueError(
+                "freq_range should be a vector consisting of two frequencies f_low < f_high!"
+            )
 
         order = 2
         cutoff = freq_range
-        self.bandpass_filter = butter(order, cutoff, btype="bandpass", analog=False, output="ba", fs=fs)
+        self.bandpass_filter = butter(
+            order, cutoff, btype="bandpass", analog=False, output="ba", fs=fs
+        )
 
         # distance between two consecutive zero crossing
         zc_dist = int(fs / f_high)
         robust_width = zc_dist // 2
         self.bipolar_spikes = bipolar_spikes
-        self.spk_encoder = ZeroCrossingSpikeEncoder(fs=self.fs, robust_width=robust_width, bipolar=bipolar_spikes)
+        self.spk_encoder = ZeroCrossingSpikeEncoder(
+            fs=self.fs, robust_width=robust_width, bipolar=bipolar_spikes
+        )
 
-    def design_from_template(self, template: Tuple[np.ndarray, np.ndarray], doa_list: np.ndarray) -> np.ndarray:
+    def design_from_template(
+        self, template: Tuple[np.ndarray, np.ndarray], doa_list: np.ndarray
+    ) -> np.ndarray:
         """
         this function builds suitable beamforming matrices for the array when it receives a given waveform in spiky format.
         Args:
@@ -82,7 +96,9 @@ class SNNBeamformer:
         try:
             time_temp, sig_temp = template
         except Exception:
-            raise ValueError("input template should be a tuple containing (time_in, sig_in) of the template signal!")
+            raise ValueError(
+                "input template should be a tuple containing (time_in, sig_in) of the template signal!"
+            )
 
         # resample the signal to the clock rate of the array
         time_interp = np.arange(time_temp.min(), time_temp.max(), step=1 / self.fs)
@@ -94,33 +110,35 @@ class SNNBeamformer:
         bf_mat = []
 
         print()
-        print('+' * 150)
-        print(" designing SNN beamforming matrices for various DoAs ".center(150, '+'))
-        print('+' * 150)
+        print("+" * 150)
+        print(" designing SNN beamforming matrices for various DoAs ".center(150, "+"))
+        print("+" * 150)
 
         # build the neuron kernel
         tau_syn, tau_mem = self.tau_vec[0], self.tau_vec[1]
         time_neuron = time_temp - time_temp[0]
 
         if tau_mem == tau_syn:
-            neuron_impulse_response = (time_neuron / tau_syn) * np.exp(-time_neuron / tau_syn)
+            neuron_impulse_response = (time_neuron / tau_syn) * np.exp(
+                -time_neuron / tau_syn
+            )
         else:
-            neuron_impulse_response = (np.exp(-time_neuron / tau_syn) - np.exp(time_neuron / tau_mem)) / (
-                    1 / tau_mem - 1 / tau_syn)
+            neuron_impulse_response = (
+                np.exp(-time_neuron / tau_syn) - np.exp(time_neuron / tau_mem)
+            ) / (1 / tau_mem - 1 / tau_syn)
             assert np.all(neuron_impulse_response >= 0)
 
         # normalize the impulse response
-        neuron_impulse_response = neuron_impulse_response / np.sum(neuron_impulse_response)
+        neuron_impulse_response = neuron_impulse_response / np.sum(
+            neuron_impulse_response
+        )
         effective_length = np.sum(np.cumsum(neuron_impulse_response) < 0.999)
 
         neuron_impulse_response = neuron_impulse_response[:effective_length]
 
         for doa in tqdm(doa_list):
             # compute the delays associated with the DoA
-            delays = self.geometry.delays(
-                theta=doa,
-                normalized=True
-            )
+            delays = self.geometry.delays(theta=doa, normalized=True)
 
             # interpolate the template signal to obtain the incoming signal
             delays -= delays.min()
@@ -129,12 +147,17 @@ class SNNBeamformer:
             time_delayed[time_delayed < time_temp.min()] = time_temp.min()
 
             # signal after interpolation of dim: `T x num_chan`
-            sig_in_vec = np.interp(time_delayed.ravel(), time_temp, sig_temp).reshape(time_delayed.shape).T
+            sig_in_vec = (
+                np.interp(time_delayed.ravel(), time_temp, sig_temp)
+                .reshape(time_delayed.shape)
+                .T
+            )
 
             # compute the in-phase and quadrature parts
             # NOTE: here we are shifting the in-phase part in time to take into account the delay due to STHT filter
-            sig_in_vec_h = np.roll(sig_in_vec, self.kernel_length // 2, axis=0) + 1j * lfilter(self.kernel, [1],
-                                                                                               sig_in_vec, axis=0)
+            sig_in_vec_h = np.roll(
+                sig_in_vec, self.kernel_length // 2, axis=0
+            ) + 1j * lfilter(self.kernel, [1], sig_in_vec, axis=0)
 
             # remove the low-pass part of the signal so that STHT works well
             b, a = self.bandpass_filter
@@ -187,8 +210,12 @@ class SNNBeamformer:
 
         return bf_mat
 
-    def apply_to_template(self, bf_mat: np.ndarray, template: Tuple[np.ndarray, np.ndarray, Union[Number, np.ndarray]],
-                          snr_db: float) -> np.ndarray:
+    def apply_to_template(
+        self,
+        bf_mat: np.ndarray,
+        template: Tuple[np.ndarray, np.ndarray, Union[Number, np.ndarray]],
+        snr_db: float,
+    ) -> np.ndarray:
         """
         this module applies beamforming when the array receives a given template [time_temp, sig_temp, doa_temp] and returns the signal after beamforming.
         Notes: in this version, the DoA of the source transmitting the template signal may vary during time.
@@ -206,7 +233,8 @@ class SNNBeamformer:
             time_temp, sig_temp, doa_temp = template
         except Exception:
             raise ValueError(
-                "input template should be a tuple containing (time_in, sig_in, doa_in) of the template signal!")
+                "input template should be a tuple containing (time_in, sig_in, doa_in) of the template signal!"
+            )
 
         if isinstance(doa_temp, Number):
             doa_temp = doa_temp * np.ones_like(sig_temp)
@@ -223,24 +251,38 @@ class SNNBeamformer:
 
         # compute the signal received at the array
         # NOTE: here we apply a delay normalization to all the samples later rather than sample by sample normalization which yields wrong results.
-        delays = np.asarray([self.geometry.delays(theta=doa, normalized=False) for doa in doa_temp]).T
+        delays = np.asarray(
+            [self.geometry.delays(theta=doa, normalized=False) for doa in doa_temp]
+        ).T
         delays = delays - delays.min()
 
         time_delayed = time_temp.reshape(1, -1) - delays
         time_delayed[time_delayed < time_temp.min()] = time_temp.min()
 
         # input signal of dim `T x num_mic`
-        sig_in_vec = np.interp(time_delayed.ravel(), time_temp, sig_temp).reshape(time_delayed.shape).T
+        sig_in_vec = (
+            np.interp(time_delayed.ravel(), time_temp, sig_temp)
+            .reshape(time_delayed.shape)
+            .T
+        )
 
         # add noise to the received signal in the array
-        noise = np.sqrt(np.mean(sig_in_vec ** 2)) / np.sqrt(snr) * np.random.randn(*sig_in_vec.shape)
+        noise = (
+            np.sqrt(np.mean(sig_in_vec**2))
+            / np.sqrt(snr)
+            * np.random.randn(*sig_in_vec.shape)
+        )
         sig_in_vec += noise
 
-        vmem_vec_beamformed = self.apply_to_signal(bf_mat=bf_mat, sig_in_vec=(time_temp, sig_in_vec))
+        vmem_vec_beamformed = self.apply_to_signal(
+            bf_mat=bf_mat, sig_in_vec=(time_temp, sig_in_vec)
+        )
 
         return vmem_vec_beamformed
 
-    def apply_to_signal(self, bf_mat: np.ndarray, sig_in_vec: Tuple[np.ndarray, np.ndarray]) -> np.ndarray:
+    def apply_to_signal(
+        self, bf_mat: np.ndarray, sig_in_vec: Tuple[np.ndarray, np.ndarray]
+    ) -> np.ndarray:
         """
         this function applies beamforming for a given signal received from array elements.
         Args:
@@ -260,7 +302,8 @@ class SNNBeamformer:
 
         if num_chan != num_mic:
             raise ValueError(
-                f"number of channels in the input siganl {num_chan} should be the same as the number of microphones {num_mic}!")
+                f"number of channels in the input siganl {num_chan} should be the same as the number of microphones {num_mic}!"
+            )
 
         # check the time and if not sampled properly resample the signal
         if not np.allclose(np.diff(time_vec), 1 / self.fs):
@@ -269,8 +312,9 @@ class SNNBeamformer:
             time_vec_all = np.repeat(time_vec.reshape(1, -1), num_mic, axis=0)
             time_vec_new_all = np.repeat(time_vec_new.reshape(1, -1), num_mic, axis=0)
 
-            sig_in_vec_resampled = np.interp(time_vec_new_all.ravel(), time_vec_all.ravel(),
-                                             sig_in_vec.ravel()).reshape(-1, num_mic)
+            sig_in_vec_resampled = np.interp(
+                time_vec_new_all.ravel(), time_vec_all.ravel(), sig_in_vec.ravel()
+            ).reshape(-1, num_mic)
 
             # replace the original signal
             sig_in_vec = sig_in_vec_resampled
@@ -278,8 +322,9 @@ class SNNBeamformer:
 
         # compute the in-phase and quadrature parts
         # NOTE: here we are shifting the in-phase part in time to take into account the delay due to STHT filter
-        sig_in_vec_h = np.roll(sig_in_vec, self.kernel_length // 2, axis=0) + 1j * lfilter(self.kernel, [1],
-                                                                                           sig_in_vec, axis=0)
+        sig_in_vec_h = np.roll(
+            sig_in_vec, self.kernel_length // 2, axis=0
+        ) + 1j * lfilter(self.kernel, [1], sig_in_vec, axis=0)
 
         # remove the low- and high-frequency components of the signal so that STHT works well
         b, a = self.bandpass_filter
@@ -298,14 +343,19 @@ class SNNBeamformer:
         time_neuron = time_vec - time_vec[0]
 
         if tau_mem == tau_syn:
-            neuron_impulse_response = (time_neuron / tau_syn) * np.exp(-time_neuron / tau_syn)
+            neuron_impulse_response = (time_neuron / tau_syn) * np.exp(
+                -time_neuron / tau_syn
+            )
         else:
-            neuron_impulse_response = (np.exp(-time_neuron / tau_syn) - np.exp(time_neuron / tau_mem)) / (
-                    1 / tau_mem - 1 / tau_syn)
+            neuron_impulse_response = (
+                np.exp(-time_neuron / tau_syn) - np.exp(time_neuron / tau_mem)
+            ) / (1 / tau_mem - 1 / tau_syn)
             assert np.all(neuron_impulse_response >= 0)
 
         # normalize the impulse response
-        neuron_impulse_response = neuron_impulse_response / np.sum(neuron_impulse_response)
+        neuron_impulse_response = neuron_impulse_response / np.sum(
+            neuron_impulse_response
+        )
         effective_length = np.sum(np.cumsum(neuron_impulse_response) < 0.999)
 
         neuron_impulse_response = neuron_impulse_response[:effective_length]
@@ -353,7 +403,7 @@ class SNNBeamformer:
 
             # continue root finding
             u_mid = (u_min + u_max) / 2
-            val_mid = np.sum(theta ** 2 / (D - u_mid))
+            val_mid = np.sum(theta**2 / (D - u_mid))
 
             if val_mid < 0.0:
                 u_min = u_mid
@@ -364,7 +414,7 @@ class SNNBeamformer:
         root = (u_min + u_max) / 2.0
 
         # find the maximum conditioned singular value
-        sing_vec = np.einsum('ij, j -> i', U, theta / (D - root))
+        sing_vec = np.einsum("ij, j -> i", U, theta / (D - root))
 
         # normalize the singular vector
         sing_vec = sing_vec / np.linalg.norm(sing_vec)

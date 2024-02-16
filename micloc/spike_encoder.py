@@ -17,10 +17,12 @@ class SpikeEncoder:
         pass
 
     def evolve(self, sig_in: np.ndarray) -> np.ndarray:
-        raise NotImplementedError("this methods needs to be implemented in various spike encoders!")
-    
+        raise NotImplementedError(
+            "this methods needs to be implemented in various spike encoders!"
+        )
+
     def __call__(self, *args, **kwargs) -> np.ndarray:
-        """ this is the same as evolve function. """
+        """this is the same as evolve function."""
         return self.evolve(*args, **kwargs)
 
 
@@ -127,7 +129,9 @@ class ZeroCrossingSpikeEncoder(SpikeEncoder):
 
             # in the bipolar version: we also encode the negative spikes
             if self.bipolar:
-                valleys, _ = find_peaks(-np.cumsum(sig_chan), distance=self.robust_width)
+                valleys, _ = find_peaks(
+                    -np.cumsum(sig_chan), distance=self.robust_width
+                )
                 spikes[chan, valleys] = -1
 
         return spikes.T

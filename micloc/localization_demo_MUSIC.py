@@ -18,8 +18,16 @@ import numpy as np
 
 
 class Demo:
-    def __init__(self, geometry: ArrayGeometry, freq_range: np.ndarray, num_active_freq: int, doa_list: np.ndarray,
-                 recording_duration: float = 0.25, num_fft_bin: int = 2048, fs: float = 48_000):
+    def __init__(
+        self,
+        geometry: ArrayGeometry,
+        freq_range: np.ndarray,
+        num_active_freq: int,
+        doa_list: np.ndarray,
+        recording_duration: float = 0.25,
+        num_fft_bin: int = 2048,
+        fs: float = 48_000,
+    ):
         """
         this module builds a MUSIC beamformer for localization.
 
@@ -35,8 +43,13 @@ class Demo:
         """
 
         # build the music module
-        self.music = MUSIC(geometry=geometry, freq_range=freq_range, doa_list=doa_list,
-                           frame_duration=recording_duration, fs=fs)
+        self.music = MUSIC(
+            geometry=geometry,
+            freq_range=freq_range,
+            doa_list=doa_list,
+            frame_duration=recording_duration,
+            fs=fs,
+        )
 
         # recording params
         self.doa_list = doa_list
@@ -63,7 +76,9 @@ class Demo:
         # possible methods
         method_list = ["peak", "periodic_ml", "trimmed_periodic_ml"]
         if method not in method_list:
-            raise ValueError(f"only the following estimation methods are supported:\n{method_list}")
+            raise ValueError(
+                f"only the following estimation methods are supported:\n{method_list}"
+            )
 
         if method == "peak":
             DoA_index = np.argmax(angular_power_spec)
@@ -79,7 +94,9 @@ class Demo:
 
             DoA_range = np.arange(-num_DoA // 2, num_DoA // 2 + 1) - DoA_index
 
-            weighted_exp = np.mean(angular_power_spec[DoA_range] * np.exp(1j * self.doa_list[DoA_range]))
+            weighted_exp = np.mean(
+                angular_power_spec[DoA_range] * np.exp(1j * self.doa_list[DoA_range])
+            )
             DoA = np.angle(weighted_exp)
 
         else:
@@ -104,10 +121,13 @@ class Demo:
             waiting_time=2,
         )
 
-        vz.start(figsize=(16, 10), xlabel="time", ylabel="DoA of the incoming audio",
-                 title=f"MUSIC: DoA estimation using multi-mic devkit with a circular array with 7 mics: fs:{self.fs} Hz, frame:{self.recording_duration} sec",
-                 grid=True
-                 )
+        vz.start(
+            figsize=(16, 10),
+            xlabel="time",
+            ylabel="DoA of the incoming audio",
+            title=f"MUSIC: DoA estimation using multi-mic devkit with a circular array with 7 mics: fs:{self.fs} Hz, frame:{self.recording_duration} sec",
+            grid=True,
+        )
 
         while True:
             # get the new data from microphones
@@ -136,7 +156,7 @@ class Demo:
             time_vec = np.arange(0, T) / self.fs
 
             # do activity detection and stop the demo when there is no signal
-            power_rec = np.sqrt(np.mean(data ** 2))
+            power_rec = np.sqrt(np.mean(data**2))
 
             print("received power from various microphones: ", power_rec)
             print("maximum value of the audio: ", max_value)
@@ -151,14 +171,21 @@ class Demo:
                 # there is activity
 
                 # compute the angular power spectrum of the input signal
-                ang_pow_spec = self.music.beamforming(sig_in=data, num_active_freq=self.num_active_freq, num_fft_bin=self.num_fft_bin)
+                ang_pow_spec = self.music.beamforming(
+                    sig_in=data,
+                    num_active_freq=self.num_active_freq,
+                    num_fft_bin=self.num_fft_bin,
+                )
 
                 # simplest method for estimating DoA
                 method_list = ["peak", "periodic_ml", "trimmed_periodic_ml"]
                 method = method_list[0]
 
                 print("\n\n")
-                print(f"method used for DoA estimation from spike rate in `run_demo`: ", method)
+                print(
+                    f"method used for DoA estimation from spike rate in `run_demo`: ",
+                    method,
+                )
 
                 DoA = self.estimate_doa(angular_power_spec=ang_pow_spec, method=method)
                 DoA_degree = DoA / np.pi * 180
@@ -188,7 +215,7 @@ def run_demo():
 
     # duration of recording in each section
     frame_duration = 0.25
-    num_fft_bin = 2048 
+    num_fft_bin = 2048
     fs = 48_000
 
     demo = Demo(
@@ -198,7 +225,7 @@ def run_demo():
         doa_list=doa_list,
         recording_duration=frame_duration,
         num_fft_bin=num_fft_bin,
-        fs=fs
+        fs=fs,
     )
 
     demo.run_demo()
@@ -208,5 +235,5 @@ def main():
     run_demo()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

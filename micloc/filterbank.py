@@ -46,11 +46,11 @@ class Filterbank:
         return sig_out
 
     def __call__(self, *args, **kwargs):
-        """ this is the same as evolve function. """
+        """this is the same as evolve function."""
         return self.evolve(*args, **kwargs)
 
     def __len__(self):
-        """ returns the number of filters in the filterbank. """
+        """returns the number of filters in the filterbank."""
         return len(self.ba_list)
 
 
@@ -77,9 +77,8 @@ class ButterworthFilterbank(Filterbank):
         ba_list = []
 
         for freq_band in freq_bands:
-            b, a = butter(order, freq_band, btype="bandpass", output='ba', fs=fs)
+            b, a = butter(order, freq_band, btype="bandpass", output="ba", fs=fs)
             ba_list.append((b, a))
 
         # build the core filterbank with the given ba_list
         super().__init__(ba_list=ba_list)
-

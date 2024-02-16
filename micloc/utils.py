@@ -22,7 +22,9 @@ class Envelope:
             fs (float): sampling rate of the module.
         """
         if rise_time > fall_time:
-            raise ValueError("for proper functioning, an envelope estimator should have a larger fall time!")
+            raise ValueError(
+                "for proper functioning, an envelope estimator should have a larger fall time!"
+            )
 
         self.rise_time = rise_time
         self.fall_time = fall_time
@@ -46,7 +48,9 @@ class Envelope:
         T, channel = sig_in.shape
 
         if T < channel:
-            warnings.warn("number of channels in the input signal is larger than number of samples in each channel!")
+            warnings.warn(
+                "number of channels in the input signal is larger than number of samples in each channel!"
+            )
 
         # compute the abs of the signal for envelope estimation
         sig_in = np.abs(sig_in)
@@ -65,7 +69,9 @@ class Envelope:
             win_len_state = self.win_lens[rise_or_fall]
 
             # signal should not be fed in rise mode
-            state = (1 - 1 / win_len_state) * state + 1 / win_len_state * sig * rise_or_fall
+            state = (
+                1 - 1 / win_len_state
+            ) * state + 1 / win_len_state * sig * rise_or_fall
 
         # append the last state
         sig_out.append(state[:])
@@ -91,15 +97,19 @@ def find_peak_location(sig_in: np.ndarray, win_size: int, periodic: bool = True)
         raise ValueError("input signal should be 1-dim!")
 
     if win_size % 2 != 1:
-        raise ValueError("averaging window size should be odd to not create confusion in peak index!")
+        raise ValueError(
+            "averaging window size should be odd to not create confusion in peak index!"
+        )
 
     if win_size > len(sig_in) // 2:
-        raise ValueError("size of averaging window is larger than half the length of input signal!")
+        raise ValueError(
+            "size of averaging window is larger than half the length of input signal!"
+        )
 
     # averaging filter
     window = np.ones(win_size)
 
-    sig_avg = np.convolve(window, sig_in, mode='full')
+    sig_avg = np.convolve(window, sig_in, mode="full")
 
     # find the location of peak
     index = np.argmax(sig_avg)

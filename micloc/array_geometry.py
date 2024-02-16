@@ -13,8 +13,14 @@ from scipy.signal import lfilter, butter
 
 SOUND_SPEED_IN_OPEN_AIR = 340
 
+
 class ArrayGeometry:
-    def __init__(self, r_vec: np.ndarray, theta_vec: np.ndarray, speed: float = SOUND_SPEED_IN_OPEN_AIR):
+    def __init__(
+        self,
+        r_vec: np.ndarray,
+        theta_vec: np.ndarray,
+        speed: float = SOUND_SPEED_IN_OPEN_AIR,
+    ):
         """
         class for encoding the array geometry in terms of delays at various DoAs.
         Args:
@@ -23,7 +29,9 @@ class ArrayGeometry:
             speed (float, optional): speed of wave captured by the array. Defaults to 340 m/s.
         """
         if np.any(r_vec < 0):
-            raise ValueError("distances of the elements in `r_vec` should be all positive!")
+            raise ValueError(
+                "distances of the elements in `r_vec` should be all positive!"
+            )
         self.r_vec = r_vec
         self.theta_vec = theta_vec
 
@@ -41,21 +49,22 @@ class ArrayGeometry:
         Returns:
             an array containing the delays of the array elements
         """
-        delays = - self.r_vec * np.cos(self.theta_vec - theta) / self.speed
+        delays = -self.r_vec * np.cos(self.theta_vec - theta) / self.speed
 
         if normalized:
             delays -= np.min(delays)
 
         return delays
 
-    def __len__(self)->int:
-        """" returns the number of sensors in the array """
+    def __len__(self) -> int:
+        """ " returns the number of sensors in the array"""
         return len(self.r_vec)
-        
 
 
 class CircularArray(ArrayGeometry):
-    def __init__(self, radius: float, num_mic: int, speed: float = SOUND_SPEED_IN_OPEN_AIR):
+    def __init__(
+        self, radius: float, num_mic: int, speed: float = SOUND_SPEED_IN_OPEN_AIR
+    ):
         """
         class encoding the geometry of a circular array.
         Args:
@@ -70,7 +79,9 @@ class CircularArray(ArrayGeometry):
 
 
 class CenterCircularArray(ArrayGeometry):
-    def __init__(self, radius: float, num_mic: int, speed: float = SOUND_SPEED_IN_OPEN_AIR):
+    def __init__(
+        self, radius: float, num_mic: int, speed: float = SOUND_SPEED_IN_OPEN_AIR
+    ):
         """
         class encoding the geometry of a circular array which has one of microphones put at the center.
         Args:
@@ -84,7 +95,9 @@ class CenterCircularArray(ArrayGeometry):
 
 
 class LinearArray(ArrayGeometry):
-    def __init__(self, spacing: float, num_mic: int, speed: float = SOUND_SPEED_IN_OPEN_AIR):
+    def __init__(
+        self, spacing: float, num_mic: int, speed: float = SOUND_SPEED_IN_OPEN_AIR
+    ):
         """
         class for encoding the array geometry for a linear array.
         Args:

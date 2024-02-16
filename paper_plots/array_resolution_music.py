@@ -30,10 +30,10 @@ def use_latex():
             "axes.linewidth": 0.5,
             "lines.linewidth": 1.0,
             "grid.linewidth": 0.5,
-            'xtick.major.width': 0.5,
-            'ytick.major.width': 0.5,
-            'xtick.major.size': 2,
-            'ytick.major.size': 2,
+            "xtick.major.width": 0.5,
+            "ytick.major.width": 0.5,
+            "xtick.major.size": 2,
+            "ytick.major.size": 2,
             #     "pgf.texsystem": "xelatex",
             #     "font.family": "Helvetica",
             #     "text.usetex": True,
@@ -54,7 +54,7 @@ def use_latex():
     plt.rc("figure", titlesize=SMALL_SIZE)  # fontsize of the figure title
 
 
-SAVE_PLOTS = False
+SAVE_PLOTS = True
 
 if SAVE_PLOTS:
     use_latex()
@@ -119,27 +119,49 @@ def array_resolution_sin():
         freq_range = [0.8 * freq_design, 1.2 * freq_design]
         num_active_freq = 1
 
-        beamf = MUSIC(geometry=geometry, freq_range=freq_range, doa_list=doa_list, frame_duration=duration, fs=fs)
+        beamf = MUSIC(
+            geometry=geometry,
+            freq_range=freq_range,
+            doa_list=doa_list,
+            frame_duration=duration,
+            fs=fs,
+        )
 
         time_temp = np.arange(0, duration, step=1 / fs)
         sig_temp = np.sin(2 * np.pi * freq_design * time_temp)
 
         ## compute two beampatterns
-        ang_pow_spec1 = beamf.apply_to_template(template=[time_temp, sig_temp, 0], num_active_freq=num_active_freq,
-                                                duration_overlap=0.0, num_fft_bin=num_fft_bin, snr_db=1000)
+        ang_pow_spec1 = beamf.apply_to_template(
+            template=[time_temp, sig_temp, 0],
+            num_active_freq=num_active_freq,
+            duration_overlap=0.0,
+            num_fft_bin=num_fft_bin,
+            snr_db=1000,
+        )
 
         # accumulate all angular power spectrum in tim
         beam_pattern1 = ang_pow_spec1.mean(0)
         beam_pattern1 = beam_pattern1 / beam_pattern1.max()
 
-        ang_pow_spec2 = beamf.apply_to_template(template=[time_temp, sig_temp, np.pi / 2],
-                                                num_active_freq=num_active_freq, duration_overlap=0.0, num_fft_bin=num_fft_bin, snr_db=1000)
+        ang_pow_spec2 = beamf.apply_to_template(
+            template=[time_temp, sig_temp, np.pi / 2],
+            num_active_freq=num_active_freq,
+            duration_overlap=0.0,
+            num_fft_bin=num_fft_bin,
+            snr_db=1000,
+        )
 
         # accumulate all angular power spectrum in tim
         beam_pattern2 = ang_pow_spec2.mean(0)
         beam_pattern2 = beam_pattern2 / beam_pattern2.max()
 
-        plot_beampattern(doa_list, beam_pattern1, beam_pattern2, f"$F= {freq_design / 1000:0.0f}$ kHz", filename)
+        plot_beampattern(
+            doa_list,
+            beam_pattern1,
+            beam_pattern2,
+            f"$F= {freq_design / 1000:0.0f}$ kHz",
+            filename,
+        )
 
         # plt.figure()
         # gs = gridspec.GridSpec(2, 1, height_ratios=[1.8, 1])
@@ -172,5 +194,5 @@ def main():
     array_resolution_sin()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

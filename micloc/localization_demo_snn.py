@@ -20,8 +20,16 @@ import numpy as np
 
 
 class Demo:
-    def __init__(self, geometry: ArrayGeometry, freq_bands: np.ndarray, doa_list: np.ndarray, recording_duration: float,
-                 kernel_duration: float, bipolar_spikes: bool, fs: float):
+    def __init__(
+        self,
+        geometry: ArrayGeometry,
+        freq_bands: np.ndarray,
+        doa_list: np.ndarray,
+        recording_duration: float,
+        kernel_duration: float,
+        bipolar_spikes: bool,
+        fs: float,
+    ):
         """
         this module builds an SNN beamformer based localization demo.
         Args:
@@ -40,7 +48,7 @@ class Demo:
 
         if freq_bands.ndim == 1:
             # there is only a single band to cover
-            freq_bands = freq_bands.reshape(1,-1)
+            freq_bands = freq_bands.reshape(1, -1)
 
         # beamforming modules and corresponding beamforming matrices
         self.beamfs = []
@@ -52,25 +60,36 @@ class Demo:
             freq_mid = np.mean(freq_range)
 
             # time constants
-            tau_mem = 1/(2*np.pi*freq_mid)
+            tau_mem = 1 / (2 * np.pi * freq_mid)
             tau_syn = tau_mem
             tau_vec = [tau_syn, tau_mem]
 
             # build SNN beamforming module
-            beamf = SNNBeamformer(geometry=geometry, kernel_duration=kernel_duration, freq_range=freq_range, tau_vec=tau_vec, bipolar_spikes=bipolar_spikes, fs=fs)
+            beamf = SNNBeamformer(
+                geometry=geometry,
+                kernel_duration=kernel_duration,
+                freq_range=freq_range,
+                tau_vec=tau_vec,
+                bipolar_spikes=bipolar_spikes,
+                fs=fs,
+            )
             self.beamfs.append(beamf)
 
             # build the template signal and design bemforming vectors
-            time_temp = np.arange(0, recording_duration, step=1/fs)
-            sig_temp = np.sin(2*np.pi*freq_mid * time_temp)
+            time_temp = np.arange(0, recording_duration, step=1 / fs)
+            sig_temp = np.sin(2 * np.pi * freq_mid * time_temp)
 
-            bf_vecs = beamf.design_from_template(template=(time_temp, sig_temp), doa_list=doa_list)
+            bf_vecs = beamf.design_from_template(
+                template=(time_temp, sig_temp), doa_list=doa_list
+            )
 
             self.bf_mats.append(bf_vecs)
 
         # build a filterbank for various frequency bands covered by the array
         order = 1
-        self.filterbank = ButterworthFilterbank(freq_bands=freq_bands, order=order, fs=fs)
+        self.filterbank = ButterworthFilterbank(
+            freq_bands=freq_bands, order=order, fs=fs
+        )
 
         self.doa_list = np.asarray(doa_list)
         self.recording_duration = recording_duration
@@ -95,10 +114,13 @@ class Demo:
             waiting_time=2,
         )
 
-        vz.start(figsize=(16, 10), xlabel="time", ylabel="DoA of the incoming audio",
-                 title=f"DoA estimation using multi-mic devkit with a circular array with 7 mics",
-                 grid=True
-                 )
+        vz.start(
+            figsize=(16, 10),
+            xlabel="time",
+            ylabel="DoA of the incoming audio",
+            title=f"DoA estimation using multi-mic devkit with a circular array with 7 mics",
+            grid=True,
+        )
 
         while True:
             # get the new data from microphones
@@ -124,10 +146,10 @@ class Demo:
 
             # recorded data information
             T, num_chan = data.shape
-            time_vec = np.arange(0, T)/self.fs
+            time_vec = np.arange(0, T) / self.fs
 
             # do activity detection and stop the demo when there is no signal
-            power_rec = np.sqrt(np.mean(data ** 2))
+            power_rec = np.sqrt(np.mean(data**2))
 
             print("received power from various microphones: ", power_rec)
             print("maximum value of the audio: ", max_value)
@@ -149,9 +171,13 @@ class Demo:
                 # apply beamforming to various channels and add the power
                 power_grid = 0
 
-                for data_filt_chan, bf_mat_chan, beamf_module in zip(data_filt, self.bf_mats, self.beamfs):
+                for data_filt_chan, bf_mat_chan, beamf_module in zip(
+                    data_filt, self.bf_mats, self.beamfs
+                ):
                     # compute the beamformed signal in each frequency channel separately
-                    data_bf_chan = beamf_module.apply_to_signal(bf_mat=bf_mat_chan, sig_in_vec=(time_vec, data_filt_chan))
+                    data_bf_chan = beamf_module.apply_to_signal(
+                        bf_mat=bf_mat_chan, sig_in_vec=(time_vec, data_filt_chan)
+                    )
 
                     # compute the power vs. DoA (power spectrum) after beamforming
                     power_grid_chan = np.mean(np.abs(data_bf_chan) ** 2, axis=0)
@@ -179,7 +205,6 @@ def test_demo():
         [1600, 2400],
     ]
 
-
     # grid of DoAs
     num_grid = 16 * num_mic
     doa_list = np.linspace(-np.pi, np.pi, num_grid)
@@ -198,7 +223,7 @@ def test_demo():
         recording_duration=recording_duration,
         kernel_duration=kernel_duration,
         bipolar_spikes=bipolar_spikes,
-        fs=fs
+        fs=fs,
     )
 
     # run the demo
@@ -209,5 +234,5 @@ def main():
     test_demo()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

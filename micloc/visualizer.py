@@ -1,6 +1,6 @@
 # -----------------------------------------------------------
 # This module implements a simple online visualizer for SNN localization demo.
-# 
+#
 #
 # (C) Saeid Haghighatshoar
 # email: saeid.haghighatshoar@synsense.ai
@@ -54,7 +54,7 @@ class Visualizer:
         this function starts plotting the data.
         """
         # if there is any previous processes running kill it
-        if hasattr(self, 'plotter'):
+        if hasattr(self, "plotter"):
             warnings.warn(
                 "an active plotter already exists! closing the plotter! make sure to call `stop` when a viusalization phase is over!"
             )
@@ -71,7 +71,9 @@ class Visualizer:
         self.buffer = np.zeros((self.buffer_size, self.dim_samples))
 
         # block = False -> does not matter if some data points are lost
-        global_queue.put((self.active, np.copy(self.time_vec), np.copy(self.buffer)), block=True)
+        global_queue.put(
+            (self.active, np.copy(self.time_vec), np.copy(self.buffer)), block=True
+        )
 
         # arguments used for the figures
         fig_args = {
@@ -89,14 +91,18 @@ class Visualizer:
         for key in kwargs.keys():
             fig_args[key] = kwargs[key]
 
-        self.plotter = mp.Process(target=self.visualize, args=(fig_args, self.waiting_time))
+        self.plotter = mp.Process(
+            target=self.visualize, args=(fig_args, self.waiting_time)
+        )
         self.plotter.start()
 
     def stop(self):
         self.active = False
 
         # report it to the plotter: block=True to make sure that plotter sees this
-        global_queue.put((self.active, np.copy(self.time_vec), np.copy(self.buffer)), block=True)
+        global_queue.put(
+            (self.active, np.copy(self.time_vec), np.copy(self.buffer)), block=True
+        )
 
     def push(self, data_in: np.ndarray):
         """this function registers the input event in the buffer
@@ -116,7 +122,9 @@ class Visualizer:
 
         # push the data into the queue
         # block = False -> does not matter if some data points are lost
-        global_queue.put((self.active, np.copy(self.time_vec), np.copy(self.buffer)), block=True)
+        global_queue.put(
+            (self.active, np.copy(self.time_vec), np.copy(self.buffer)), block=True
+        )
 
     @staticmethod
     def visualize(fig_args, waiting_time: float = 1.0):
@@ -136,8 +144,12 @@ class Visualizer:
                 passed_time = time.time() - last_data_time
 
                 if passed_time > waiting_time:
-                    print(f"\n\nno data is transferred to visualizer in the last {passed_time}")
-                    print("make sure to call `stop` function to finish visualization if there is no more data!")
+                    print(
+                        f"\n\nno data is transferred to visualizer in the last {passed_time}"
+                    )
+                    print(
+                        "make sure to call `stop` function to finish visualization if there is no more data!"
+                    )
                     print("waiting for 1 sec to receive the next data ....\n\n")
                     time.sleep(1)
 
@@ -145,7 +157,13 @@ class Visualizer:
                 break
 
             plt.clf()
-            plt.plot(time_vec, buffer, linewidth=fig_args["linewidth"], marker=fig_args["marker"], label=fig_args["label"])
+            plt.plot(
+                time_vec,
+                buffer,
+                linewidth=fig_args["linewidth"],
+                marker=fig_args["marker"],
+                label=fig_args["label"],
+            )
             if fig_args["label"] != "":
                 plt.legend()
             plt.xlabel(fig_args["xlabel"])
@@ -205,5 +223,5 @@ def main():
     test_visualizer()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

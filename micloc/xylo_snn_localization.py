@@ -24,7 +24,12 @@ from rockpool.nn.combinators import Sequential
 import torch
 
 # rockpool conversion/mapping modules
-from rockpool.devices.xylo.syns61201 import config_from_specification, mapper, xa2_devkit_utils as hdu, XyloSamna
+from rockpool.devices.xylo.syns61201 import (
+    config_from_specification,
+    mapper,
+    xa2_devkit_utils as hdu,
+    XyloSamna,
+)
 from rockpool.devices.xylo.syns61201 import XyloSim
 
 from rockpool.transform import quantize_methods as q
@@ -34,10 +39,17 @@ import time
 
 
 class Demo:
-    def __init__(self, geometry: ArrayGeometry, freq_bands: np.ndarray, doa_list: np.ndarray,
-                 recording_duration: float = 0.25,
-                 kernel_duration: float = 10e-3, bipolar_spikes: bool = True, xylosim_version: bool = True,
-                 fs: float = 48_000):
+    def __init__(
+        self,
+        geometry: ArrayGeometry,
+        freq_bands: np.ndarray,
+        doa_list: np.ndarray,
+        recording_duration: float = 0.25,
+        kernel_duration: float = 10e-3,
+        bipolar_spikes: bool = True,
+        xylosim_version: bool = True,
+        fs: float = 48_000,
+    ):
         """
         this module builds an SNN beamformer based localization demo.
         Args:
@@ -79,15 +91,23 @@ class Demo:
             self.tau_vecs.append(tau_vec)
 
             # build SNN beamforming module
-            beamf = SNNBeamformer(geometry=geometry, kernel_duration=kernel_duration, freq_range=freq_range,
-                                  tau_vec=tau_vec, bipolar_spikes=bipolar_spikes, fs=fs)
+            beamf = SNNBeamformer(
+                geometry=geometry,
+                kernel_duration=kernel_duration,
+                freq_range=freq_range,
+                tau_vec=tau_vec,
+                bipolar_spikes=bipolar_spikes,
+                fs=fs,
+            )
             self.beamfs.append(beamf)
 
             # build the template signal and design bemforming vectors
             time_temp = np.arange(0, recording_duration, step=1 / fs)
             sig_temp = np.sin(2 * np.pi * freq_mid * time_temp)
 
-            bf_vecs = beamf.design_from_template(template=(time_temp, sig_temp), doa_list=doa_list)
+            bf_vecs = beamf.design_from_template(
+                template=(time_temp, sig_temp), doa_list=doa_list
+            )
 
             self.bf_mats.append(bf_vecs)
 
@@ -95,7 +115,9 @@ class Demo:
 
         # build a filterbank for various frequency bands covered by the array
         order = 1
-        self.filterbank = ButterworthFilterbank(freq_bands=freq_bands, order=order, fs=fs)
+        self.filterbank = ButterworthFilterbank(
+            freq_bands=freq_bands, order=order, fs=fs
+        )
 
         self.doa_list = np.asarray(doa_list)
         self.recording_duration = recording_duration
@@ -116,7 +138,7 @@ class Demo:
         self._initialize_snn_module(target_dt=target_dt)
 
     def _initialize_snn_module(self, target_dt: float):
-        """ this module initializes xyloxim for SNN processing and localization.
+        """this module initializes xyloxim for SNN processing and localization.
 
         Args:
             target_dt (float): `dt` used for simulation of SNN core.
@@ -147,8 +169,10 @@ class Demo:
         # weight connection between layers
         weight = np.zeros((num_ch_in, num_ch_out))
         for ch in range(num_freq_chan):
-            weight[ch * spike_dim_in_chan: (ch + 1) * spike_dim_in_chan,
-            ch * spike_dim_out_chan:(ch + 1) * spike_dim_out_chan] = self.bf_mats[ch]
+            weight[
+                ch * spike_dim_in_chan : (ch + 1) * spike_dim_in_chan,
+                ch * spike_dim_out_chan : (ch + 1) * spike_dim_out_chan,
+            ] = self.bf_mats[ch]
 
         # consider the spike polarity effect
         if self.bipolar_spikes:
@@ -171,7 +195,7 @@ class Demo:
         tau_syn_vec = torch.tensor(data=tau_syn_vec, dtype=torch.float32)
 
         # add recurrnet weights to neurons to make sure that the DC value of the membrane potential is set to zero
-        w_rec_coef = -0.1/num_ch_out
+        w_rec_coef = -0.1 / num_ch_out
         w_rec = w_rec_coef * torch.ones((num_ch_out, num_ch_out), dtype=torch.float32)
 
         # build the network NOTE: we add a dummy node at the end to make sure that we can deploy the netowrk and read
@@ -209,7 +233,12 @@ class Demo:
         )
 
         # map the graph to Xylo HW architecture
-        spec = mapper(self.net.as_graph(), weight_dtype='float', threshold_dtype='float', dash_dtype='float')
+        spec = mapper(
+            self.net.as_graph(),
+            weight_dtype="float",
+            threshold_dtype="float",
+            dash_dtype="float",
+        )
 
         # quantize the parameters to Xylo HW constraints
         spec.update(q.global_quantize(**spec))
@@ -223,7 +252,9 @@ class Demo:
 
         # build simulation module: xylosim or hardware version
         if self.xylosim_version:
-            self.xylo = XyloSim.from_config(xylo_config, output_mode="Spike", dt=target_dt)
+            self.xylo = XyloSim.from_config(
+                xylo_config, output_mode="Spike", dt=target_dt
+            )
         else:
             # try to find the board
             # build the xylo-samna version
@@ -231,21 +262,21 @@ class Demo:
 
             try:
                 hdk = hdks[0]
-                print('Xylo a2 HW found')
+                print("Xylo a2 HW found")
 
                 # set xylo clock rate (in MHz)
                 clock_rate = 50
                 hdu.set_xylo_core_clock_freq(device=hdk, desired_freq_MHz=clock_rate)
 
                 # build xylo-samna module -> the main goal is to to power measurement
-                self.xylo = XyloSamna(
-                    hdk,
-                    xylo_config,
-                    dt=target_dt
-                )
+                self.xylo = XyloSamna(hdk, xylo_config, dt=target_dt)
             except Exception:
-                print("there was an issue with Xylo a2 board! Switching back to xylosim version!")
-                self.xylo = XyloSim.from_config(xylo_config, output_mode="Spike", dt=target_dt)
+                print(
+                    "there was an issue with Xylo a2 board! Switching back to xylosim version!"
+                )
+                self.xylo = XyloSim.from_config(
+                    xylo_config, output_mode="Spike", dt=target_dt
+                )
                 self.xylosim_version = True
 
     def spike_encoding(self, sig_in: np.ndarray) -> np.ndarray:
@@ -262,7 +293,9 @@ class Demo:
         # NOTE: all the frequency channels use the same STHT
         stht_kernel = self.beamfs[0].kernel
 
-        sig_in_h = np.roll(sig_in, len(stht_kernel) // 2, axis=0) + 1j * lfilter(stht_kernel, [1], sig_in, axis=0)
+        sig_in_h = np.roll(sig_in, len(stht_kernel) // 2, axis=0) + 1j * lfilter(
+            stht_kernel, [1], sig_in, axis=0
+        )
 
         # real-valued version of the signal
         sig_in_real = np.hstack([np.real(sig_in_h), np.imag(sig_in_h)])
@@ -306,7 +339,7 @@ class Demo:
         out, state, rec = self.xylo(spikes_in, record=True)
 
         # find the intermediate spikes representing the first layer of neurons
-        spikes_out = rec['Spikes']
+        spikes_out = rec["Spikes"]
 
         return spikes_out
 
@@ -349,7 +382,9 @@ class Demo:
         # possible methods
         method_list = ["peak", "periodic_ml", "trimmed_periodic_ml"]
         if method not in method_list:
-            raise ValueError(f"only the following estimation methods are supported:\n{method_list}")
+            raise ValueError(
+                f"only the following estimation methods are supported:\n{method_list}"
+            )
 
         if method == "peak":
             DoA_index = np.argmax(spike_rate)
@@ -365,7 +400,9 @@ class Demo:
 
             DoA_range = np.arange(-num_DoA // 2, num_DoA // 2 + 1) - DoA_index
 
-            weighted_exp = np.mean(spike_rate[DoA_range] * np.exp(1j * self.doa_list[DoA_range]))
+            weighted_exp = np.mean(
+                spike_rate[DoA_range] * np.exp(1j * self.doa_list[DoA_range])
+            )
             DoA = np.angle(weighted_exp)
 
         else:
@@ -390,10 +427,13 @@ class Demo:
             waiting_time=2,
         )
 
-        vz.start(figsize=(16, 10), xlabel="time", ylabel="DoA of the incoming audio",
-                 title=f"DoA estimation using multi-mic devkit with a circular array with 7 mics: fs:{self.fs} Hz, frame:{self.recording_duration} sec, kernel:{int(1000 * self.kernel_duration)} msec, bipolar-spike:{self.bipolar_spikes}",
-                 grid=True
-                 )
+        vz.start(
+            figsize=(16, 10),
+            xlabel="time",
+            ylabel="DoA of the incoming audio",
+            title=f"DoA estimation using multi-mic devkit with a circular array with 7 mics: fs:{self.fs} Hz, frame:{self.recording_duration} sec, kernel:{int(1000 * self.kernel_duration)} msec, bipolar-spike:{self.bipolar_spikes}",
+            grid=True,
+        )
 
         while True:
             # get the new data from microphones
@@ -422,7 +462,7 @@ class Demo:
             time_vec = np.arange(0, T) / self.fs
 
             # do activity detection and stop the demo when there is no signal
-            power_rec = np.sqrt(np.mean(data ** 2))
+            power_rec = np.sqrt(np.mean(data**2))
 
             print("received power from various microphones: ", power_rec)
             print("maximum value of the audio: ", max_value)
@@ -444,7 +484,10 @@ class Demo:
                 spikes_out = self.xylo_process(spikes_in=spikes_in)
                 duration_xylosim_process = time.time() - start_xylosim_process
 
-                print("duration of spike processing by xylosim: ", duration_xylosim_process)
+                print(
+                    "duration of spike processing by xylosim: ",
+                    duration_xylosim_process,
+                )
 
                 # compute the DoA of the strongest target
                 spike_rate = self.extract_rate(spikes_out)
@@ -454,7 +497,10 @@ class Demo:
                 method = method_list[0]
 
                 print("\n\n")
-                print(f"method used for DoA estimation from spike rate in `run_demo`: ", method)
+                print(
+                    f"method used for DoA estimation from spike rate in `run_demo`: ",
+                    method,
+                )
 
                 DoA = self.estimate_doa_from_rate(spike_rate=spike_rate, method=method)
                 DoA_degree = DoA / np.pi * 180
@@ -468,7 +514,11 @@ class Demo:
         """
 
         print("+" * 150)
-        print(" performing power measurement for localization in xylo a2 ".center(150, "+"))
+        print(
+            " performing power measurement for localization in xylo a2 ".center(
+                150, "+"
+            )
+        )
         print("+" * 150)
 
         clock_rate = 6.25
@@ -484,35 +534,37 @@ class Demo:
 
             try:
                 hdk = hdks[0]
-                print('Xylo a2 HW found')
+                print("Xylo a2 HW found")
 
                 # build xylo-samna module -> the main goal is to to power measurement
                 xylo_config = self.xylo.config
                 target_dt = self.xylo.dt
 
-                board = XyloSamna(
-                    hdk,
-                    xylo_config,
-                    dt=target_dt
-                )
+                board = XyloSamna(hdk, xylo_config, dt=target_dt)
 
             except Exception:
-                print("there was an issue with Xylo a2 board! no power measurement was possible!")
+                print(
+                    "there was an issue with Xylo a2 board! no power measurement was possible!"
+                )
                 return
 
         # set xylo clock rate (in MHz)
-        clock_rate = hdu.set_xylo_core_clock_freq(device=self.xylo._device, desired_freq_MHz=clock_rate)
+        clock_rate = hdu.set_xylo_core_clock_freq(
+            device=self.xylo._device, desired_freq_MHz=clock_rate
+        )
 
-        print(f'Network info: Input weights: {np.array(self.xylo.config.input.weights).shape} Hidden weights: {np.array(self.xylo.config.reservoir.weights).shape}')
+        print(
+            f"Network info: Input weights: {np.array(self.xylo.config.input.weights).shape} Hidden weights: {np.array(self.xylo.config.reservoir.weights).shape}"
+        )
 
         # now try to measure the power
         num_ch_in, _ = self.net[0].weight.shape
 
         if num_ch_in > 16:
             raise ValueError(
-                "unfortunately XyloSamna does not support more than 16 input channels!\n" + \
-                "for power measurement, you can use only a single frequency channel and also unipolar spikes\n" + \
-                "to reduce the number of input channels as much as possible (hopefully to 16 or lower)!\n"
+                "unfortunately XyloSamna does not support more than 16 input channels!\n"
+                + "for power measurement, you can use only a single frequency channel and also unipolar spikes\n"
+                + "to reduce the number of input channels as much as possible (hopefully to 16 or lower)!\n"
             )
 
         spk_rate = 1_000
@@ -524,6 +576,9 @@ class Demo:
         spikes_in = (np.random.rand(T, num_ch_in) < spk_prob).astype(np.int64)
 
         board.reset_state()
+
+        # - Sleep to ensure Xylo is flushed
+        time.sleep(1.0)
 
         print("spikes were pushed to the board and they are being processed ....")
         start = time.time()
@@ -542,13 +597,18 @@ class Demo:
         # considering the time it took for board to process how much scaling in speed and complexity is needed to run
         # localization online
 
-        power_measurement = dict()
+        power_estimate = dict()
+        power_raw = dict()
         for key in rec.keys():
             if "power" in key:
-                power_measurement[key] = np.mean(rec[key]) * power_scale
+                power_raw[key] = np.mean(rec[key] * 1e6)
+                power_estimate[key] = np.mean(rec[key] * 1e6) * power_scale
 
-        print("results of power measurement:")
-        print(power_measurement)
+        print("power measurement (raw) (uW):")
+        print(power_raw)
+
+        print("power estimation (real-time) (uW):")
+        print(power_estimate)
 
 
 def run_demo(mode: str):
@@ -598,7 +658,7 @@ def run_demo(mode: str):
         kernel_duration=kernel_duration,
         bipolar_spikes=bipolar_spikes,
         xylosim_version=xylosim_version,
-        fs=fs
+        fs=fs,
     )
 
     if mode == mode_list[0]:
@@ -614,8 +674,8 @@ def main():
     mode_list = ["visualization", "power_measurement"]
     mode = mode_list[0]
 
-    run_demo(mode='power_measurement')
+    run_demo(mode="power_measurement")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

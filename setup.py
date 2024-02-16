@@ -21,5 +21,7 @@ setup(
         "tqdm",
         "matplotlib",
         "cvxpy",
+        "xylosim",
+        "bitstruct",
     ],
 )

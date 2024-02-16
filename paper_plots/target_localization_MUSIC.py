@@ -33,10 +33,10 @@ def use_latex():
             "axes.linewidth": 0.5,
             "lines.linewidth": 1.0,
             "grid.linewidth": 0.5,
-            'xtick.major.width': 0.5,
-            'ytick.major.width': 0.5,
-            'xtick.major.size': 2,
-            'ytick.major.size': 2,
+            "xtick.major.width": 0.5,
+            "ytick.major.width": 0.5,
+            "xtick.major.size": 2,
+            "ytick.major.size": 2,
             #     "pgf.texsystem": "xelatex",
             #     "font.family": "Helvetica",
             #     "text.usetex": True,
@@ -57,13 +57,15 @@ def use_latex():
     plt.rc("figure", titlesize=SMALL_SIZE)  # fontsize of the figure title
 
 
-
 SAVE_PLOTS = True
 
 if SAVE_PLOTS:
     use_latex()
 
-num_active_freq = 11
+num_active_freq = 1
+
+num_fft_bin_MUSIC = 2048
+
 
 def approx_decreasing(sig_in):
     """
@@ -101,7 +103,7 @@ def test_speech_target():
     fs = 48_000
 
     freq_design = 2_000
-    freq_range = [0.8 * freq_design, 1.2*freq_design]
+    freq_range = [0.8 * freq_design, 1.2 * freq_design]
 
     geometry = CenterCircularArray(radius=radius, num_mic=num_mic)
 
@@ -143,9 +145,11 @@ def test_speech_target():
     sig_test = np.sin(2 * np.pi * freq_test * time_test)
 
     # - Load a speech sample
-    sig_test, samplefreq = sf.read('paper_plots/84-121123-0020.flac')
+    sig_test, samplefreq = sf.read("paper_plots/84-121123-0020.flac")
     time_test = np.arange(len(sig_test)) / samplefreq
-    time_fs = np.linspace(time_test[0], time_test[-1], int(len(sig_test) / samplefreq * fs))
+    time_fs = np.linspace(
+        time_test[0], time_test[-1], int(len(sig_test) / samplefreq * fs)
+    )
     sig_test = np.interp(time_fs, time_test, sig_test)
 
     # random DoA index
@@ -155,9 +159,9 @@ def test_speech_target():
 
     snr_db_vec = [-10, 0, 10, 20]
 
-    mm = 1/25.4
+    mm = 1 / 25.4
 
-    plt.figure(figsize=[40*mm, 40*mm])
+    plt.figure(figsize=[40 * mm, 40 * mm])
 
     filename = os.path.join(dir_name, "fixed_speech_beam.pdf")
 
@@ -167,8 +171,9 @@ def test_speech_target():
         sig_bf = beamf.apply_to_template(
             template=[time_fs, sig_test, doa_target],
             num_active_freq=num_active_freq,
-            duration_overlap=0.,
+            duration_overlap=0.0,
             snr_db=snr_db_bandwidth,
+            num_fft_bin=num_fft_bin_MUSIC,
         )
 
         # compute power
@@ -176,12 +181,19 @@ def test_speech_target():
         power /= power.max()
 
         plt.plot(
-            doa_list / np.pi * 180, 10 * np.log10(power), label=f"snr: {snr_db} dB",
-            color = f'C{ind}',
+            doa_list / np.pi * 180,
+            10 * np.log10(power),
+            label=f"snr: {snr_db} dB",
+            color=f"C{ind}",
         )
         plt.xlabel("DoA (deg.)")
 
-        plt.axvline(x=doa_list[np.argmax(power)] / np.pi * 180, color = f'C{ind}', label="target DoA", linestyle='--',)
+        plt.axvline(
+            x=doa_list[np.argmax(power)] / np.pi * 180,
+            color=f"C{ind}",
+            label="target DoA",
+            linestyle="--",
+        )
 
     plt.ylabel("Normalized Power (dB)")
     plt.xticks([-180, -90, 0, 90, 180])
@@ -191,14 +203,111 @@ def test_speech_target():
     # plt.title(
     #     f"Angular power spectrum after beamforming:\nfreq-range:[{f_min / 1000:0.1f}, {f_max / 1000:0.1f}] KHz, DoA-target: {doa_target * 180 / np.pi:0.2f} deg"
     # )
-    plt.axvline(x=0., color="k", label="target DoA", linestyle=':')
-    
+    plt.axvline(x=0.0, color="k", label="target DoA", linestyle=":")
 
     if SAVE_PLOTS:
         plt.savefig(filename, bbox_inches="tight", transparent=True)
     else:
         plt.show()
-        
+
+    # apply statistical analysis of the precision of DoA estimation
+    snr_db_vec = np.linspace(-10, 20, 11)
+    angle_err = []
+    num_sim = 100
+
+    # test_duration = 1000e-3
+    # time_test = np.arange(0, test_duration, step=1 / fs)
+    # sig_test = np.sin(2 * np.pi * freq_design * time_test)
+
+    print("\n", " statistical analysis ".center(150, "*"), "\n")
+
+    doa_err_vec = np.zeros((np.size(snr_db_vec), num_sim))
+
+    for snr_ind, snr_db in tqdm(enumerate(snr_db_vec), total=len(snr_db_vec)):
+        # snr correction considering the snr improvement after filtering
+        snr_db_target = snr_db
+
+        for sim in tqdm(range(num_sim)):
+            doa_target = np.random.rand(1)[0] * 2 * np.pi
+
+            # extract the beamformed signal
+            sig_bf = beamf.apply_to_template(
+                template=[time_fs, sig_test, doa_target],
+                snr_db=snr_db_target,
+                num_active_freq=num_active_freq,
+                duration_overlap=0.0,
+                num_fft_bin=num_fft_bin_MUSIC,
+            )
+
+            # power after beamforming
+            power = np.mean(np.abs(sig_bf) ** 2, axis=0)
+
+            doa_target_est = doa_list[np.argmax(power)]
+
+            doa_err = np.arcsin(np.abs(np.sin(doa_target_est - doa_target)))
+            doa_err_vec[snr_ind, sim] = doa_err
+
+        # compute MMSE error
+        doa_err_avg = np.mean(np.abs(doa_err))
+
+        angle_err.append(doa_err_avg)
+
+    # plot
+    # NOTE: we fins the best monotone approximation
+    angle_err = np.asarray(angle_err)
+    # angle_err = approx_decreasing(np.asarray(angle_err))
+
+    plt.figure(figsize=[40 * mm, 40 * mm])
+
+    plt.plot(snr_db_vec, angle_err / np.pi * 180)
+    plt.grid(True)
+    plt.xlabel("SNR (dB)")
+    plt.ylabel("Angle error (deg.)")
+
+    num_xticks = 5
+
+    filename = os.path.join(dir_name, "fixed_speech_accuracy_snr.pdf")
+
+    plt.figure(figsize=[40 * mm, 40 * mm])
+
+    plt.boxplot(
+        doa_err_vec.T / np.pi * 180,
+        vert=True,
+        labels=snr_db_vec,
+        manage_ticks=False,
+        medianprops={"linestyle": "-", "color": "black", "linewidth": 0.5},
+        boxprops={"linewidth": 0.5},
+        showcaps=False,
+        sym="k.",
+        flierprops={"markersize": 2},
+        whiskerprops={"linewidth": 0.5},
+    )
+    plt.plot([0, len(snr_db_vec) + 1], [1, 1], "k:", linewidth=0.5)
+    # plt.xticks(range(1, len(doa_err_vec), 5))
+    xticks = np.linspace(1, len(doa_err_vec), num_xticks)
+    print(xticks)
+    plt.xticks(
+        xticks,
+        [
+            f"{t:0.1f}"
+            for t in np.linspace(np.min(snr_db_vec), np.max(snr_db_vec), num_xticks)
+        ],
+    )
+    plt.xlabel("SNR (dB)")
+    plt.ylabel("Angle error (deg.)")
+    plt.ylim([-2, 20])
+
+    print(f"SNR: {snr_db_vec}")
+    print(f"Mean aboslute errors: {np.mean(doa_err_vec, axis=1) * 180 / np.pi}")
+
+    if not SAVE_PLOTS:
+        plt.draw()
+    else:
+        plt.savefig(filename, bbox_inches="tight", transparent=True)
+
+    if not SAVE_PLOTS:
+        plt.show()
+
 
 def test_noisy_target():
     """
@@ -215,7 +324,7 @@ def test_noisy_target():
     fs = 48_000
 
     freq_design = 2_000
-    freq_range = [0.8 * freq_design, 1.2*freq_design]
+    freq_range = [0.8 * freq_design, 1.2 * freq_design]
 
     geometry = CenterCircularArray(radius=radius, num_mic=num_mic)
 
@@ -244,7 +353,6 @@ def test_noisy_target():
         fs=fs,
     )
 
-
     # build a chirp signal
     f_min, f_max = freq_range
     period = time_temp[-1]
@@ -261,7 +369,7 @@ def test_noisy_target():
     # sig_temp = lfilter(b, a, noise)
 
     freq_test = (f_min + f_max) / 2
-    time_test = time_temp #[: len(time_temp) // 16]
+    time_test = time_temp  # [: len(time_temp) // 16]
     sig_test = np.sin(2 * np.pi * freq_test * time_test)
 
     # random DoA index
@@ -271,10 +379,10 @@ def test_noisy_target():
 
     snr_gain_due_to_bandwidth = (fs / 2) / (f_max - f_min)
     snr_db_vec = [-10, 0, 10, 20]
-    
-    mm = 1/25.4
 
-    plt.figure(figsize=[40*mm, 40*mm])
+    mm = 1 / 25.4
+
+    plt.figure(figsize=[40 * mm, 40 * mm])
 
     filename = os.path.join(dir_name, "fixed_target_beam.pdf")
 
@@ -285,7 +393,8 @@ def test_noisy_target():
             template=[time_test, sig_test, doa_target],
             snr_db=snr_db_bandwidth,
             num_active_freq=num_active_freq,
-            duration_overlap=0.
+            duration_overlap=0.0,
+            num_fft_bin=num_fft_bin_MUSIC,
         )
 
         # time_temp = np.arange(0, duration, step=1 / fs)
@@ -294,7 +403,7 @@ def test_noisy_target():
         # ## compute two beampatterns
         # sig_bf = beamf.apply_to_template(template=[time_temp, sig_temp, 0], num_active_freq=1,
         #                                         duration_overlap=0.0, snr_db=1000)
-        
+
         print(sig_bf.shape)
 
         # compute power
@@ -303,14 +412,20 @@ def test_noisy_target():
 
         print(power.shape, doa_list.shape)
 
-
         plt.plot(
-            doa_list / np.pi * 180, 10 * np.log10(power), label=f"snr: {snr_db} dB",
-            color = f'C{ind}',
+            doa_list / np.pi * 180,
+            10 * np.log10(power),
+            label=f"snr: {snr_db} dB",
+            color=f"C{ind}",
         )
         plt.xlabel("DoA (deg.)")
 
-        plt.axvline(x=doa_list[np.argmax(power)] / np.pi * 180, color = f'C{ind}', label="target DoA", linestyle='--',)
+        plt.axvline(
+            x=doa_list[np.argmax(power)] / np.pi * 180,
+            color=f"C{ind}",
+            label="target DoA",
+            linestyle="--",
+        )
 
     plt.ylabel("Normalized Power (dB)")
     plt.xticks([-180, -90, 0, 90, 180])
@@ -320,14 +435,13 @@ def test_noisy_target():
     # plt.title(
     #     f"Angular power spectrum after beamforming:\nfreq-range:[{f_min / 1000:0.1f}, {f_max / 1000:0.1f}] KHz, DoA-target: {doa_target * 180 / np.pi:0.2f} deg"
     # )
-    plt.axvline(x=0., color="k", label="target DoA", linestyle=':')
-    
+    plt.axvline(x=0.0, color="k", label="target DoA", linestyle=":")
 
     if SAVE_PLOTS:
         plt.savefig(filename, bbox_inches="tight", transparent=True)
     else:
         plt.show()
-        
+
     # apply statistical analysis of the precision of DoA estimation
     snr_db_vec = np.linspace(-10, 20, 11)
     angle_err = []
@@ -341,11 +455,11 @@ def test_noisy_target():
 
     doa_err_vec = np.zeros((np.size(snr_db_vec), num_sim))
 
-    for snr_ind, snr_db in tqdm(enumerate(snr_db_vec), total = len(snr_db_vec)):
+    for snr_ind, snr_db in tqdm(enumerate(snr_db_vec), total=len(snr_db_vec)):
         # snr correction considering the snr improvement after filtering
         snr_db_target = snr_db - 10 * np.log10(snr_gain_due_to_bandwidth)
 
-        for sim in range(num_sim):
+        for sim in tqdm(range(num_sim)):
             doa_target = np.random.rand(1)[0] * 2 * np.pi
 
             # extract the beamformed signal
@@ -353,7 +467,8 @@ def test_noisy_target():
                 template=[time_test, sig_test, doa_target],
                 snr_db=snr_db_target,
                 num_active_freq=num_active_freq,
-                duration_overlap=0.,
+                duration_overlap=0.0,
+                num_fft_bin=num_fft_bin_MUSIC,
             )
 
             # power after beamforming
@@ -374,7 +489,7 @@ def test_noisy_target():
     angle_err = np.asarray(angle_err)
     # angle_err = approx_decreasing(np.asarray(angle_err))
 
-    plt.figure(figsize=[40*mm, 40*mm])
+    plt.figure(figsize=[40 * mm, 40 * mm])
 
     plt.plot(snr_db_vec, angle_err / np.pi * 180)
     plt.grid(True)
@@ -385,24 +500,37 @@ def test_noisy_target():
 
     filename = os.path.join(dir_name, "fixed_target_accuracy_snr.pdf")
 
-    plt.figure(figsize=[40*mm, 40*mm])
+    plt.figure(figsize=[40 * mm, 40 * mm])
 
-    plt.boxplot(doa_err_vec.T / np.pi * 180, vert=True, labels = snr_db_vec, manage_ticks=False, medianprops={'linestyle':'-', 'color':'black', 'linewidth':0.5}, boxprops={'linewidth':0.5}, showcaps=False, sym='k.', flierprops={'markersize':2}, whiskerprops={'linewidth':0.5})
-    plt.plot([0, len(snr_db_vec)+1], [1, 1], 'k:', linewidth=0.5)
+    plt.boxplot(
+        doa_err_vec.T / np.pi * 180,
+        vert=True,
+        labels=snr_db_vec,
+        manage_ticks=False,
+        medianprops={"linestyle": "-", "color": "black", "linewidth": 0.5},
+        boxprops={"linewidth": 0.5},
+        showcaps=False,
+        sym="k.",
+        flierprops={"markersize": 2},
+        whiskerprops={"linewidth": 0.5},
+    )
+    plt.plot([0, len(snr_db_vec) + 1], [1, 1], "k:", linewidth=0.5)
     # plt.xticks(range(1, len(doa_err_vec), 5))
     xticks = np.linspace(1, len(doa_err_vec), num_xticks)
     print(xticks)
     plt.xticks(
         xticks,
-        [f'{t:0.1f}' for t in np.linspace(np.min(snr_db_vec), np.max(snr_db_vec), num_xticks)],
+        [
+            f"{t:0.1f}"
+            for t in np.linspace(np.min(snr_db_vec), np.max(snr_db_vec), num_xticks)
+        ],
     )
     plt.xlabel("SNR (dB)")
     plt.ylabel("Angle error (deg.)")
     plt.ylim([-2, 20])
 
-
-    print(f'SNR: {snr_db_vec}')
-    print(f'Mean aboslute errors: {np.mean(doa_err_vec, axis=1) * 180 / np.pi}')
+    print(f"SNR: {snr_db_vec}")
+    print(f"Mean aboslute errors: {np.mean(doa_err_vec, axis=1) * 180 / np.pi}")
 
     if not SAVE_PLOTS:
         plt.draw()
@@ -411,9 +539,6 @@ def test_noisy_target():
 
     if not SAVE_PLOTS:
         plt.show()
-
-
-
 
 
 def test_moving_target():
@@ -426,7 +551,7 @@ def test_moving_target():
     fs = 48_000
 
     freq_design = 2_000
-    freq_range = [0.8 * freq_design, 1.2*freq_design]
+    freq_range = [0.8 * freq_design, 1.2 * freq_design]
 
     geometry = CenterCircularArray(radius=radius, num_mic=num_mic)
 
@@ -481,7 +606,11 @@ def test_moving_target():
     doa_test = doa_max * np.sin(num_period * np.pi / duration_test * time_test)
 
     sig_bf = beamf.apply_to_template(
-       template=[time_test, sig_test, doa_test], snr_db=snr_db, num_active_freq=num_active_freq, duration_overlap=0.,
+        template=[time_test, sig_test, doa_test],
+        snr_db=snr_db,
+        num_active_freq=num_active_freq,
+        duration_overlap=0.0,
+        num_fft_bin=num_fft_bin_MUSIC,
     )
 
     # compute the envelope of output signal
@@ -494,8 +623,7 @@ def test_moving_target():
 
     # detect DoA based on energy eccumulation
     acc_win_size = int(fs * rise_time)
-    sig_acc = np.diff(np.cumsum(np.abs(sig_bf), axis=0)[::acc_win_size,:], axis=0)
-
+    sig_acc = np.diff(np.cumsum(np.abs(sig_bf), axis=0)[::acc_win_size, :], axis=0)
 
     rel_err = np.sqrt(
         np.median((doa_est - doa_test[: len(doa_est)]) ** 2)
@@ -526,8 +654,8 @@ def test_moving_target():
 
 
 def main():
-    test_noisy_target()
     test_speech_target()
+    test_noisy_target()
     # test_moving_target()
 
 

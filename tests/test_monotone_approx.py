@@ -21,7 +21,9 @@ def test_monotone():
     snr = 10 ** (snr_db / 10)
 
     sig_in = np.sort(np.random.rand(100))
-    sig_in_noise = sig_in + np.sqrt(np.mean(sig_in**2))/np.sqrt(snr) * np.random.randn(dim)
+    sig_in_noise = sig_in + np.sqrt(np.mean(sig_in**2)) / np.sqrt(
+        snr
+    ) * np.random.randn(dim)
 
     # Construct the problem.
     x = cp.Variable(dim)
@@ -45,10 +47,9 @@ def test_monotone():
     plt.show()
 
 
-
 def main():
     test_monotone()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

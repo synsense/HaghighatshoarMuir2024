@@ -91,7 +91,9 @@ def test_hilbert_SNN_localization():
         sig_in = 0
         for jump in delay_jump_vec:
             time_delay = time_vec - jump - delay
-            sig_in = sig_in + time_delay * np.exp(-alpha * time_delay) * np.heaviside(time_delay, 0)
+            sig_in = sig_in + time_delay * np.exp(-alpha * time_delay) * np.heaviside(
+                time_delay, 0
+            )
             # sig_in = sig_in + np.sin(2*np.pi*freq*time_delay)
 
         sig_in_vec.append(sig_in)
@@ -121,7 +123,7 @@ def test_hilbert_SNN_localization():
 
     plt.subplot(513)
     plt.plot(angle_vec, psd_angle)
-    plt.axvline(x=angle * 180 / np.pi, color='r', linewidth=3)
+    plt.axvline(x=angle * 180 / np.pi, color="r", linewidth=3)
 
     plt.subplot(514)
     plt.plot(time_vec, np.real(sig_in_vec_h).T)
@@ -175,7 +177,9 @@ def test_hilbert_SNN_beamforming():
             sig_in = 0
             for jump in delay_jump_vec:
                 time_delay = time_vec - jump - delay
-                sig_in = sig_in + time_delay * np.exp(-alpha * time_delay) * np.heaviside(time_delay, 0)
+                sig_in = sig_in + time_delay * np.exp(
+                    -alpha * time_delay
+                ) * np.heaviside(time_delay, 0)
                 # sig_in = sig_in + np.sin(2*np.pi*freq*time_delay)
 
             sig_in_vec.append(sig_in)
@@ -187,10 +191,14 @@ def test_hilbert_SNN_beamforming():
 
         # remove the transient part of hilbert transform
         T = sig_in_vec_h.shape[1]
-        sig_in_vec_h_stable = sig_in_vec_h[:, T // 4:-T // 4]
+        sig_in_vec_h_stable = sig_in_vec_h[:, T // 4 : -T // 4]
 
         # compute the SVD to localize
-        cov_mat = sig_in_vec_h_stable @ np.conjugate(sig_in_vec_h_stable).T / sig_in_vec_h_stable.shape[1]
+        cov_mat = (
+            sig_in_vec_h_stable
+            @ np.conjugate(sig_in_vec_h_stable).T
+            / sig_in_vec_h_stable.shape[1]
+        )
         U, D, V = np.linalg.svd(cov_mat)
 
         bf_vec = U[:, 0]
@@ -201,8 +209,8 @@ def test_hilbert_SNN_beamforming():
 
     # plot the last set of waveforms
     plt.figure(figsize=(16, 10))
-    plt.plot(time_vec, np.real(sig_in_vec_h).T, label='in-phase')
-    plt.plot(time_vec, np.imag(sig_in_vec_h).T, label='quadrature')
+    plt.plot(time_vec, np.real(sig_in_vec_h).T, label="in-phase")
+    plt.plot(time_vec, np.imag(sig_in_vec_h).T, label="quadrature")
     plt.xlabel("time (sec)")
     plt.ylabel("waveforms")
     plt.grid(True)
@@ -219,11 +227,13 @@ def test_hilbert_SNN_beamforming():
 
     plt.figure(figsize=(16, 10))
     plt.plot(angle_vec * 180 / np.pi, corr_center)
-    plt.legend(['left', 'center', 'right'])
+    plt.legend(["left", "center", "right"])
     plt.xlabel("angle [deg]")
     plt.ylabel("spatial correlation")
     plt.grid(True)
-    plt.title(f"spatial resolution curve at various angular sections (num mic: {num_mic})")
+    plt.title(
+        f"spatial resolution curve at various angular sections (num mic: {num_mic})"
+    )
     plt.ylim([0, 1.05])
 
     plt.show()
@@ -241,12 +251,14 @@ def test_hilbert_kernel():
     xh = hilbert(x)
 
     xh_imag_est = np.zeros(L)
-    xh_imag_est[1:] = 2 * np.sin(np.pi * np.arange(1, L) / 2) ** 2 / (np.pi * np.arange(1, L))
+    xh_imag_est[1:] = (
+        2 * np.sin(np.pi * np.arange(1, L) / 2) ** 2 / (np.pi * np.arange(1, L))
+    )
 
     plt.figure(figsize=(16, 10))
     plt.plot(np.real(xh))
     plt.plot(np.imag(xh))
-    plt.plot(xh_imag_est, '+')
+    plt.plot(xh_imag_est, "+")
     plt.xlabel("index")
     plt.ylabel("Hilbert kernels")
     plt.title(f"Hilbert transform kernels of size {L}")
@@ -288,14 +300,16 @@ def test_short_hilbert():
 
     # * compute the recovered phases
     phase_h = np.unwrap(np.angle(sig_in_h))
-    phase_h_short = np.unwrap(np.angle(sig_in_h_short[:len(sig_in_h)]))
+    phase_h_short = np.unwrap(np.angle(sig_in_h_short[: len(sig_in_h)]))
 
     plt.figure(figsize=(16, 10))
 
     plt.subplot(211)
-    plt.plot(time_vec, np.imag(sig_in_h), color='b', label='full')
-    plt.plot(time_vec, np.real(sig_in_h), color='black', label='original')
-    plt.plot(time_vec, np.imag(sig_in_h_short[:len(time_vec)]), color='r', label='short')
+    plt.plot(time_vec, np.imag(sig_in_h), color="b", label="full")
+    plt.plot(time_vec, np.real(sig_in_h), color="black", label="original")
+    plt.plot(
+        time_vec, np.imag(sig_in_h_short[: len(time_vec)]), color="r", label="short"
+    )
     plt.title(f"kernel duration: {kernel_duration:0.4f} sec, length: {L} samples")
     plt.legend()
     plt.grid(True)
@@ -386,7 +400,9 @@ def test_hilbert_chirp():
     plt.grid(True)
     plt.xlabel("angle [deg]")
     plt.ylabel("array resolution")
-    plt.title(f"Hilbert: array resolution for a chirp in freq range [{freq_min:0.0f}, {freq_max:0.0f}] Hz")
+    plt.title(
+        f"Hilbert: array resolution for a chirp in freq range [{freq_min:0.0f}, {freq_max:0.0f}] Hz"
+    )
     plt.ylim([0, 1.05])
 
     plt.show(block=False)
@@ -428,7 +444,9 @@ def test_hilbert_chirp():
         sig_in_vec = np.asarray(sig_in_vec)
 
         # compute the hilbert transform
-        sig_in_vec_kernel = lfilter(ker_hilbert, [1], sig_in_vec, axis=1)[:, :sig_in_vec.shape[1]]
+        sig_in_vec_kernel = lfilter(ker_hilbert, [1], sig_in_vec, axis=1)[
+            :, : sig_in_vec.shape[1]
+        ]
         sig_in_vec_h = sig_in_vec + 1j * sig_in_vec_kernel
 
         # compute the SVD for beamforming
@@ -452,7 +470,8 @@ def test_hilbert_chirp():
     plt.xlabel("angle [deg]")
     plt.ylabel("array resolution")
     plt.title(
-        f"Kernel Hilbert: array resolution for a chirp in freq range [{freq_min:0.0f}, {freq_max:0.0f}] Hz, ker-duartion: {ker_duration}, ker-len:{ker_len} samples")
+        f"Kernel Hilbert: array resolution for a chirp in freq range [{freq_min:0.0f}, {freq_max:0.0f}] Hz, ker-duartion: {ker_duration}, ker-len:{ker_len} samples"
+    )
     plt.ylim([0, 1.05])
 
     plt.show(block=False)
@@ -480,7 +499,9 @@ def test_hilbert_chirp():
     sig_in_vec = np.asarray(sig_in_vec)
 
     # compute the hilbert transform
-    sig_in_vec_kernel = lfilter(ker_hilbert, [1], sig_in_vec, axis=1)[:, :sig_in_vec.shape[1]]
+    sig_in_vec_kernel = lfilter(ker_hilbert, [1], sig_in_vec, axis=1)[
+        :, : sig_in_vec.shape[1]
+    ]
     sig_in_vec_h = sig_in_vec + 1j * sig_in_vec_kernel
 
     cov_mat = sig_in_vec_h @ np.conjugate(sig_in_vec_h).T / sig_in_vec_h.shape[0]
@@ -584,7 +605,9 @@ def test_hilbert_chirp_circular():
     plt.grid(True)
     plt.xlabel("angle [deg]")
     plt.ylabel("array resolution")
-    plt.title(f"Hilbert: array resolution for a chirp in freq range [{freq_min:0.0f}, {freq_max:0.0f}] Hz")
+    plt.title(
+        f"Hilbert: array resolution for a chirp in freq range [{freq_min:0.0f}, {freq_max:0.0f}] Hz"
+    )
     plt.ylim([0, 1.05])
 
     plt.show(block=False)
@@ -628,7 +651,9 @@ def test_hilbert_chirp_circular():
         sig_in_vec = np.asarray(sig_in_vec)
 
         # compute the hilbert transform
-        sig_in_vec_kernel = lfilter(ker_hilbert, [1], sig_in_vec, axis=1)[:, :sig_in_vec.shape[1]]
+        sig_in_vec_kernel = lfilter(ker_hilbert, [1], sig_in_vec, axis=1)[
+            :, : sig_in_vec.shape[1]
+        ]
         sig_in_vec_h = sig_in_vec + 1j * sig_in_vec_kernel
 
         # compute the SVD for beamforming
@@ -652,7 +677,8 @@ def test_hilbert_chirp_circular():
     plt.xlabel("angle [deg]")
     plt.ylabel("array resolution")
     plt.title(
-        f"Kernel Hilbert: array resolution for a chirp in freq range [{freq_min:0.0f}, {freq_max:0.0f}] Hz, ker-duartion: {ker_duration}, ker-len:{ker_len} samples")
+        f"Kernel Hilbert: array resolution for a chirp in freq range [{freq_min:0.0f}, {freq_max:0.0f}] Hz, ker-duartion: {ker_duration}, ker-len:{ker_len} samples"
+    )
     plt.ylim([0, 1.05])
 
     plt.show(block=False)
@@ -682,7 +708,9 @@ def test_hilbert_chirp_circular():
     sig_in_vec = np.asarray(sig_in_vec)
 
     # compute the hilbert transform
-    sig_in_vec_kernel = lfilter(ker_hilbert, [1], sig_in_vec, axis=1)[:, :sig_in_vec.shape[1]]
+    sig_in_vec_kernel = lfilter(ker_hilbert, [1], sig_in_vec, axis=1)[
+        :, : sig_in_vec.shape[1]
+    ]
     sig_in_vec_h = sig_in_vec + 1j * sig_in_vec_kernel
 
     cov_mat = sig_in_vec_h @ np.conjugate(sig_in_vec_h).T / sig_in_vec_h.shape[0]
@@ -695,7 +723,7 @@ def test_hilbert_chirp_circular():
 
     plt.figure(figsize=(16, 10))
     # plt.plot(angle_vec * 180 / np.pi, power_bf)
-    plt.axes(projection='polar')
+    plt.axes(projection="polar")
     plt.polar(angle_vec, power_bf)
     plt.title(f"power profile for a target with DoA = {angle * 180 / np.pi:0.2f} deg")
     plt.grid(True)
@@ -715,10 +743,15 @@ def test_hilbert_chirp_circular():
     delay_vec = (radius_arr * np.cos(angle_arr - angle)) / speed
 
     ph_init = 2 * np.pi * np.random.rand(1)[0]
-    sig_in_vec = np.sin(2 * np.pi * freq_probe * (time_probe.reshape(1, -1) - delay_vec.reshape(-1, 1)) + ph_init)
+    sig_in_vec = np.sin(
+        2 * np.pi * freq_probe * (time_probe.reshape(1, -1) - delay_vec.reshape(-1, 1))
+        + ph_init
+    )
 
     # compute the hilbert transform
-    sig_in_vec_kernel = lfilter(ker_hilbert, [1], sig_in_vec, axis=1)[:, :sig_in_vec.shape[1]]
+    sig_in_vec_kernel = lfilter(ker_hilbert, [1], sig_in_vec, axis=1)[
+        :, : sig_in_vec.shape[1]
+    ]
     sig_in_vec_h = sig_in_vec + 1j * sig_in_vec_kernel
 
     # compute the signal after beamforming
@@ -729,17 +762,18 @@ def test_hilbert_chirp_circular():
 
     plt.figure(figsize=(16, 10))
     # plt.plot(angle_vec * 180 / np.pi, power_bf)
-    plt.axes(projection='polar')
+    plt.axes(projection="polar")
     plt.polar(angle_vec, power_bf)
     plt.title(
-        f"mismatch: power profile for a target with DoA = {angle * 180 / np.pi:0.2f} deg and sinusoid waveform with freq = {freq_probe:0.2f} Hz")
+        f"mismatch: power profile for a target with DoA = {angle * 180 / np.pi:0.2f} deg and sinusoid waveform with freq = {freq_probe:0.2f} Hz"
+    )
     plt.grid(True)
     plt.show(block=False)
 
     # repeat the simulation for a random signal
-    cutoff = [freq_min/10, freq_max]
+    cutoff = [freq_min / 10, freq_max]
     order = 2
-    b, a = butter(order, cutoff, 'bandpass', analog=False, output='ba', fs=fs)
+    b, a = butter(order, cutoff, "bandpass", analog=False, output="ba", fs=fs)
 
     duration = 100e-3
     num_samples = int(duration * fs)
@@ -750,8 +784,8 @@ def test_hilbert_chirp_circular():
     time_vec = np.arange(0, duration, step=1 / fs)
     waveform = lfilter(b, a, noise)
 
-    angle = np.pi/4
-    delay_vec = (radius_arr * np.cos(angle_arr - angle))/speed
+    angle = np.pi / 4
+    delay_vec = (radius_arr * np.cos(angle_arr - angle)) / speed
 
     delay_vec = delay_vec - np.min(delay_vec)
 
@@ -768,7 +802,9 @@ def test_hilbert_chirp_circular():
     sig_in_vec = np.asarray(sig_in_vec)
 
     # compute the hilbert transform
-    sig_in_vec_kernel = lfilter(ker_hilbert, [1], sig_in_vec, axis=1)[:, :sig_in_vec.shape[1]]
+    sig_in_vec_kernel = lfilter(ker_hilbert, [1], sig_in_vec, axis=1)[
+        :, : sig_in_vec.shape[1]
+    ]
     sig_in_vec_h = sig_in_vec + 1j * sig_in_vec_kernel
 
     # compute the signal after beamforming
@@ -781,10 +817,11 @@ def test_hilbert_chirp_circular():
     # plt.plot(angle_vec * 180 / np.pi, power_bf)
 
     # plt.subplot(211)
-    plt.axes(projection='polar')
+    plt.axes(projection="polar")
     plt.polar(angle_vec, power_bf)
     plt.title(
-        f"mismatch: power profile for a target with DoA = {angle * 180 / np.pi:0.2f} deg and random waveform in freq range {cutoff} Hz")
+        f"mismatch: power profile for a target with DoA = {angle * 180 / np.pi:0.2f} deg and random waveform in freq range {cutoff} Hz"
+    )
     plt.grid(True)
 
     # plt.subplot(212)
@@ -792,9 +829,6 @@ def test_hilbert_chirp_circular():
     # plt.xlabel("time (sec)")
     # plt.ylabel("waveform")
     plt.show()
-
-
-
 
 
 def test_hilbert_freq_domain():
@@ -830,5 +864,5 @@ def main():
     # test_hilbert_freq_domain()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

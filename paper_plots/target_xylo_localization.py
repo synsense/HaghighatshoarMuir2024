@@ -33,10 +33,10 @@ def use_latex():
             "axes.linewidth": 0.5,
             "lines.linewidth": 1.0,
             "grid.linewidth": 0.5,
-            'xtick.major.width': 0.5,
-            'ytick.major.width': 0.5,
-            'xtick.major.size': 2,
-            'ytick.major.size': 2,
+            "xtick.major.width": 0.5,
+            "ytick.major.width": 0.5,
+            "xtick.major.size": 2,
+            "ytick.major.size": 2,
             #     "pgf.texsystem": "xelatex",
             #     "font.family": "Helvetica",
             #     "text.usetex": True,
@@ -85,7 +85,9 @@ def approx_decreasing(sig_in):
     return sig_est
 
 
-def signal_from_template(geometry: ArrayGeometry, template: Tuple[np.ndarray, np.ndarray, np.ndarray]) -> np.ndarray:
+def signal_from_template(
+    geometry: ArrayGeometry, template: Tuple[np.ndarray, np.ndarray, np.ndarray]
+) -> np.ndarray:
     """this function builds the audio signal received from the microphone from the template signal.
 
     Args:
@@ -106,7 +108,9 @@ def signal_from_template(geometry: ArrayGeometry, template: Tuple[np.ndarray, np
     time_delays = time_temp.reshape(-1, 1) + delays
 
     # `T x num_mic` signal received at the input of the array
-    sig_in = np.interp(time_delays.ravel(), time_temp, sig_temp).reshape(*time_delays.shape)
+    sig_in = np.interp(time_delays.ravel(), time_temp, sig_temp).reshape(
+        *time_delays.shape
+    )
 
     return sig_in
 
@@ -114,6 +118,7 @@ def signal_from_template(geometry: ArrayGeometry, template: Tuple[np.ndarray, np
 # ===========================================================================
 #                              Simulations
 # ===========================================================================
+
 
 def test_speech_target():
     """
@@ -144,7 +149,7 @@ def test_speech_target():
     num_grid = 64 * num_mic + 1
     doa_list = np.linspace(-np.pi, np.pi, num_grid)
 
-    # duration of the signal used for 
+    # duration of the signal used for
     duration = 1000e-3
 
     # use Demo as a dummy object for computation
@@ -177,9 +182,11 @@ def test_speech_target():
     sig_test = np.sin(phase_inst)
 
     # - Load a speech sample
-    sig_test, samplefreq = sf.read('84-121123-0020.flac')
+    sig_test, samplefreq = sf.read("84-121123-0020.flac")
     time_test = np.arange(len(sig_test)) / samplefreq
-    time_fs = np.linspace(time_test[0], time_test[-1], int(len(sig_test) / samplefreq * fs))
+    time_fs = np.linspace(
+        time_test[0], time_test[-1], int(len(sig_test) / samplefreq * fs)
+    )
     sig_test = np.interp(time_fs, time_test, sig_test)
 
     # random DoA index
@@ -191,7 +198,9 @@ def test_speech_target():
     doa_target = 0.0
 
     # build the input signal from the template
-    sig_in = signal_from_template(template=(time_fs, sig_test, doa_target), geometry=geometry)
+    sig_in = signal_from_template(
+        template=(time_fs, sig_test, doa_target), geometry=geometry
+    )
 
     # we work with SNR in bandwidth when only noise within the bandwidth is considered
     snr_gain_due_to_bandwidth = (fs / 2) / (f_max - f_min)
@@ -211,7 +220,7 @@ def test_speech_target():
         snr_bandwidth = 10 ** (snr_db_bandwidth / 10)
 
         # add noise to the test signal
-        sig_pow = np.mean(sig_in ** 2)
+        sig_pow = np.mean(sig_in**2)
         noise_sigma = np.sqrt(sig_pow / snr_bandwidth)
 
         sig_in_noisy = sig_in + noise_sigma * np.random.randn(*sig_in.shape)
@@ -227,12 +236,19 @@ def test_speech_target():
         power /= power.max()
 
         plt.plot(
-            doa_list / np.pi * 180, 10 * np.log10(power), label=f"snr: {snr_db} dB",
-            color=f'C{ind}',
+            doa_list / np.pi * 180,
+            10 * np.log10(power),
+            label=f"snr: {snr_db} dB",
+            color=f"C{ind}",
         )
         plt.xlabel("DoA (deg.)")
 
-        plt.axvline(x=doa_list[np.argmax(power)] / np.pi * 180, color=f'C{ind}', label="target DoA", linestyle='--', )
+        plt.axvline(
+            x=doa_list[np.argmax(power)] / np.pi * 180,
+            color=f"C{ind}",
+            label="target DoA",
+            linestyle="--",
+        )
 
     plt.ylabel("Normalized Power (dB)")
     plt.xticks([-180, -90, 0, 90, 180])
@@ -242,7 +258,7 @@ def test_speech_target():
     # plt.title(
     #     f"Angular power spectrum after beamforming:\nfreq-range:[{f_min / 1000:0.1f}, {f_max / 1000:0.1f}] KHz, DoA-target: {doa_target * 180 / np.pi:0.2f} deg"
     # )
-    plt.axvline(x=0., color="k", label="target DoA", linestyle=':')
+    plt.axvline(x=0.0, color="k", label="target DoA", linestyle=":")
     # plt.legend()
 
     if SAVE_PLOTS:
@@ -283,10 +299,12 @@ def test_speech_target():
             doa_target = np.random.rand(1)[0] * 2 * np.pi
 
             # obtain the corresponding input signal in the input of array
-            sig_in = signal_from_template(template=(time_fs, sig_test, doa_target), geometry=geometry)
+            sig_in = signal_from_template(
+                template=(time_fs, sig_test, doa_target), geometry=geometry
+            )
 
             # add noise to the signal
-            sig_pow = np.mean(sig_in ** 2)
+            sig_pow = np.mean(sig_in**2)
             noise_sigma = np.sqrt(sig_pow / snr_target)
 
             sig_in_noisy = sig_in + noise_sigma * np.random.randn(*sig_in.shape)
@@ -306,8 +324,8 @@ def test_speech_target():
             doa_target_est = doa_list[np.argmax(power)]
 
             # method 2: more robust for finding the location of peaks in power vector
-            win_size = num_grid//32
-            win_size = 2 * (win_size//2) + 1
+            win_size = num_grid // 32
+            win_size = 2 * (win_size // 2) + 1
             doa_target_index = find_peak_location(sig_in=power, win_size=win_size)
             doa_target_est = doa_list[doa_target_index]
 
@@ -337,23 +355,35 @@ def test_speech_target():
 
     plt.figure(figsize=[40 * mm, 40 * mm])
 
-    plt.boxplot(doa_err_vec.T / np.pi * 180, vert=True, labels=snr_db_vec, manage_ticks=False,
-                medianprops={'linestyle': '-', 'color': 'black', 'linewidth': 0.5}, boxprops={'linewidth': 0.5},
-                showcaps=False, sym='k.', flierprops={'markersize': 2}, whiskerprops={'linewidth': 0.5})
-    plt.plot([0, len(snr_db_vec) + 1], [1, 1], 'k:', linewidth=0.5)
+    plt.boxplot(
+        doa_err_vec.T / np.pi * 180,
+        vert=True,
+        labels=snr_db_vec,
+        manage_ticks=False,
+        medianprops={"linestyle": "-", "color": "black", "linewidth": 0.5},
+        boxprops={"linewidth": 0.5},
+        showcaps=False,
+        sym="k.",
+        flierprops={"markersize": 2},
+        whiskerprops={"linewidth": 0.5},
+    )
+    plt.plot([0, len(snr_db_vec) + 1], [1, 1], "k:", linewidth=0.5)
     # plt.xticks(range(1, len(doa_err_vec), 5))
     xticks = np.linspace(1, len(doa_err_vec), num_xticks)
     print(xticks)
     plt.xticks(
         xticks,
-        [f'{t:0.1f}' for t in np.linspace(np.min(snr_db_vec), np.max(snr_db_vec), num_xticks)],
+        [
+            f"{t:0.1f}"
+            for t in np.linspace(np.min(snr_db_vec), np.max(snr_db_vec), num_xticks)
+        ],
     )
     plt.xlabel("SNR (dB)")
     plt.ylabel("Angle error (deg.)")
     plt.ylim([-2, 20])
 
-    print(f'SNR: {snr_db_vec}')
-    print(f'Mean absolute errors: {np.mean(doa_err_vec, axis=1) * 180 / np.pi}')
+    print(f"SNR: {snr_db_vec}")
+    print(f"Mean absolute errors: {np.mean(doa_err_vec, axis=1) * 180 / np.pi}")
 
     if not SAVE_PLOTS:
         plt.draw()
@@ -444,7 +474,9 @@ def test_noisy_target():
     doa_target = 0.0
 
     # compute the input signal received from the array
-    sig_in = signal_from_template(template=(time_test, sig_test, doa_target), geometry=geometry)
+    sig_in = signal_from_template(
+        template=(time_test, sig_test, doa_target), geometry=geometry
+    )
 
     snr_gain_due_to_bandwidth = (fs / 2) / (f_max - f_min)
     snr_db_vec = [-10, 0, 10, 20]
@@ -462,7 +494,7 @@ def test_noisy_target():
         snr_bandwidth = 10 ** (snr_db_bandwidth / 10)
 
         # add noise to the test signal
-        sig_pow = np.mean(sig_in ** 2)
+        sig_pow = np.mean(sig_in**2)
         noise_sigma = np.sqrt(sig_pow / snr_bandwidth)
 
         sig_in_noisy = sig_in + noise_sigma * np.random.randn(*sig_in.shape)
@@ -478,12 +510,19 @@ def test_noisy_target():
         power /= power.max()
 
         plt.plot(
-            doa_list / np.pi * 180, 10 * np.log10(power), label=f"snr: {snr_db} dB",
-            color=f'C{ind}',
+            doa_list / np.pi * 180,
+            10 * np.log10(power),
+            label=f"snr: {snr_db} dB",
+            color=f"C{ind}",
         )
         plt.xlabel("DoA (deg.)")
 
-        plt.axvline(x=doa_list[np.argmax(power)] / np.pi * 180, color=f'C{ind}', label="target DoA", linestyle='--', )
+        plt.axvline(
+            x=doa_list[np.argmax(power)] / np.pi * 180,
+            color=f"C{ind}",
+            label="target DoA",
+            linestyle="--",
+        )
 
     plt.ylabel("Normalized Power (dB)")
     plt.xticks([-180, -90, 0, 90, 180])
@@ -494,7 +533,7 @@ def test_noisy_target():
     # plt.title(
     #     f"Angular power spectrum after beamforming:\nfreq-range:[{f_min / 1000:0.1f}, {f_max / 1000:0.1f}] KHz, DoA-target: {doa_target * 180 / np.pi:0.2f} deg"
     # )
-    plt.axvline(x=0., color="k", label="target DoA", linestyle=':')
+    plt.axvline(x=0.0, color="k", label="target DoA", linestyle=":")
     # plt.legend()
 
     if SAVE_PLOTS:
@@ -535,10 +574,12 @@ def test_noisy_target():
             doa_target = np.random.rand(1)[0] * 2 * np.pi
 
             # obtain the corresponding input signal in the input of array
-            sig_in = signal_from_template(template=(time_test, sig_test, doa_target), geometry=geometry)
+            sig_in = signal_from_template(
+                template=(time_test, sig_test, doa_target), geometry=geometry
+            )
 
             # add noise to the signal
-            sig_pow = np.mean(sig_in ** 2)
+            sig_pow = np.mean(sig_in**2)
             noise_sigma = np.sqrt(sig_pow / snr_target)
 
             sig_in_noisy = sig_in + noise_sigma * np.random.randn(*sig_in.shape)
@@ -558,8 +599,8 @@ def test_noisy_target():
             doa_target_est = doa_list[np.argmax(power)]
 
             # method 2: more robust for finding the location of peaks in power vector
-            win_size = num_grid//32
-            win_size = 2 * (win_size//2) + 1
+            win_size = num_grid // 32
+            win_size = 2 * (win_size // 2) + 1
             doa_target_index = find_peak_location(sig_in=power, win_size=win_size)
             doa_target_est = doa_list[doa_target_index]
 
@@ -589,23 +630,35 @@ def test_noisy_target():
 
     plt.figure(figsize=[40 * mm, 40 * mm])
 
-    plt.boxplot(doa_err_vec.T / np.pi * 180, vert=True, labels=snr_db_vec, manage_ticks=False,
-                medianprops={'linestyle': '-', 'color': 'black', 'linewidth': 0.5}, boxprops={'linewidth': 0.5},
-                showcaps=False, sym='k.', flierprops={'markersize': 2}, whiskerprops={'linewidth': 0.5})
-    plt.plot([0, len(snr_db_vec) + 1], [1, 1], 'k:', linewidth=0.5)
+    plt.boxplot(
+        doa_err_vec.T / np.pi * 180,
+        vert=True,
+        labels=snr_db_vec,
+        manage_ticks=False,
+        medianprops={"linestyle": "-", "color": "black", "linewidth": 0.5},
+        boxprops={"linewidth": 0.5},
+        showcaps=False,
+        sym="k.",
+        flierprops={"markersize": 2},
+        whiskerprops={"linewidth": 0.5},
+    )
+    plt.plot([0, len(snr_db_vec) + 1], [1, 1], "k:", linewidth=0.5)
     # plt.xticks(range(1, len(doa_err_vec), 5))
     xticks = np.linspace(1, len(doa_err_vec), num_xticks)
     print(xticks)
     plt.xticks(
         xticks,
-        [f'{t:0.1f}' for t in np.linspace(np.min(snr_db_vec), np.max(snr_db_vec), num_xticks)],
+        [
+            f"{t:0.1f}"
+            for t in np.linspace(np.min(snr_db_vec), np.max(snr_db_vec), num_xticks)
+        ],
     )
     plt.xlabel("SNR (dB)")
     plt.ylabel("Angle error (deg.)")
     plt.ylim([-2, 20])
 
-    print(f'SNR: {snr_db_vec}')
-    print(f'Mean absolute errors: {np.mean(doa_err_vec, axis=1) * 180 / np.pi}')
+    print(f"SNR: {snr_db_vec}")
+    print(f"Mean absolute errors: {np.mean(doa_err_vec, axis=1) * 180 / np.pi}")
 
     if not SAVE_PLOTS:
         plt.draw()
@@ -679,15 +732,17 @@ def test_moving_target():
     num_period = 0.5
     doa_test = doa_max * np.sin(num_period * np.pi / duration_test * time_test)
 
-    # build the signal at the input of the array 
-    sig_in = signal_from_template(template=(time_test, sig_test, doa_test), geometry=geometry)
+    # build the signal at the input of the array
+    sig_in = signal_from_template(
+        template=(time_test, sig_test, doa_test), geometry=geometry
+    )
 
     # add noise
     snr_gain_due_to_bandwidth = (fs / 2) / (f_max - f_min)
     snr_db_target = snr_db - 10 * np.log10(snr_gain_due_to_bandwidth)
 
     snr_target = 10 ** (snr_db_target / 10)
-    sig_pow = np.mean(sig_in ** 2)
+    sig_pow = np.mean(sig_in**2)
 
     noise_sigma = np.sqrt(sig_pow / snr_target)
     sig_in_noisy = sig_in + noise_sigma * np.random.randn(*sig_in.shape)

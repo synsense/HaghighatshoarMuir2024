@@ -75,5 +75,5 @@ def main():
     test_slope_hilbert()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

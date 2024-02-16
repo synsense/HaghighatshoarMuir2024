@@ -43,16 +43,20 @@ def test_array_resolution():
     num_grid = 8 * num_mic
     doa_list = np.linspace(-np.pi, np.pi, num_grid)
 
-    bf_mat = beamf.design_from_template(template=(time_temp, sig_temp), doa_list=doa_list)
+    bf_mat = beamf.design_from_template(
+        template=(time_temp, sig_temp), doa_list=doa_list
+    )
 
     # plot the array resolution
     corr = np.abs(bf_mat.conj().T @ bf_mat)
 
-    selected_indices = np.arange(0, len(corr), len(corr)//4)
+    selected_indices = np.arange(0, len(corr), len(corr) // 4)
     plt.plot(doa_list / np.pi * 180, corr[selected_indices, :].T)
     plt.xlabel("DoA")
     plt.ylabel("array resolution")
-    plt.title(f"array resolution: freq={freq_design}, ker-duration:{int(1000 * kernel_duration)} ms")
+    plt.title(
+        f"array resolution: freq={freq_design}, ker-duration:{int(1000 * kernel_duration)} ms"
+    )
     plt.grid(True)
     plt.show()
 
@@ -83,14 +87,18 @@ def test_fixed_target():
     num_grid = 16 * num_mic
     doa_list = np.linspace(-np.pi, np.pi, num_grid)
 
-    bf_mat = beamf.design_from_template(template=(time_temp, sig_temp), doa_list=doa_list)
+    bf_mat = beamf.design_from_template(
+        template=(time_temp, sig_temp), doa_list=doa_list
+    )
 
     # use the beamforming matrix
     freq_test = freq_design * 1.1
 
     doa_target = np.pi / 4
     snr_db = 100
-    sig_bf = beamf.apply_to_template(bf_mat=bf_mat, template=(time_temp, sig_temp, doa_target), snr_db=snr_db)
+    sig_bf = beamf.apply_to_template(
+        bf_mat=bf_mat, template=(time_temp, sig_temp, doa_target), snr_db=snr_db
+    )
 
     # compute power
     power = np.mean(np.abs(sig_bf) ** 2, axis=1)
@@ -102,7 +110,8 @@ def test_fixed_target():
     plt.ylim([0, 1.05])
     plt.grid(True)
     plt.title(
-        f"power of beamformed signal: freq-design:{int(freq_design)} Hz\nfreq-target:{int(freq_test)} Hz, DoA-target: {doa_target * 180 / np.pi:0.2f}")
+        f"power of beamformed signal: freq-design:{int(freq_design)} Hz\nfreq-target:{int(freq_test)} Hz, DoA-target: {doa_target * 180 / np.pi:0.2f}"
+    )
     plt.axvline(x=doa_target * 180 / np.pi, color="r", label="target DoA")
 
     plt.show()
@@ -139,7 +148,9 @@ def test_moving_target():
 
     doa_resolution = (doa_list[-1] - doa_list[0]) / num_grid
 
-    bf_mat = beamf.design_from_template(template=(time_temp, sig_temp), doa_list=doa_list)
+    bf_mat = beamf.design_from_template(
+        template=(time_temp, sig_temp), doa_list=doa_list
+    )
 
     # use the beamforming matrix for tracking a moving target
     freq_test = freq_design * 1.1
@@ -150,7 +161,9 @@ def test_moving_target():
     doa_max = np.pi * 0.9
     doa_test = doa_max * np.sin(2 * np.pi / duration_test * time_test)
 
-    sig_bf = beamf.apply_to_template(bf_mat=bf_mat, template=(time_test, sig_test, doa_test), snr_db=snr_db)
+    sig_bf = beamf.apply_to_template(
+        bf_mat=bf_mat, template=(time_test, sig_test, doa_test), snr_db=snr_db
+    )
 
     # compute the envelope of output signal
     rise_time = 10e-3
@@ -164,7 +177,9 @@ def test_moving_target():
     doa_est = doa_list[doa_index]
 
     rel_err = np.sqrt(
-        np.median((doa_est - doa_test[:-1]) ** 2) / np.sqrt(np.median(doa_est ** 2) * np.median(doa_test ** 2)))
+        np.median((doa_est - doa_test[:-1]) ** 2)
+        / np.sqrt(np.median(doa_est**2) * np.median(doa_test**2))
+    )
     angle_err = (doa_est - doa_test[:-1]) * 180 / np.pi
 
     med_err = np.median(np.abs(angle_err))
@@ -176,9 +191,9 @@ def test_moving_target():
     plt.plot(time_test, doa_test * 180 / np.pi, label="true")
     plt.ylim([doa_list[0] * 180 / np.pi, doa_list[-1] * 180 / np.pi])
     plt.title(
-        f"tracking a moving target: radius:{radius:0.3f}m, num-mic:{num_mic}\n" + \
-        f"DoA resolution: {doa_resolution * 180 / np.pi:0.1f} deg, rel-err:{rel_err:0.5f}, med-err:{med_err:0.2f} deg\n" + \
-        f"freq-design:{int(freq_design)}, freq-test:{int(freq_test)}, ker-H duration:{1000 * kernel_duration:0.1f} ms, num-samples:{int(kernel_duration * fs)}"
+        f"tracking a moving target: radius:{radius:0.3f}m, num-mic:{num_mic}\n"
+        + f"DoA resolution: {doa_resolution * 180 / np.pi:0.1f} deg, rel-err:{rel_err:0.5f}, med-err:{med_err:0.2f} deg\n"
+        + f"freq-design:{int(freq_design)}, freq-test:{int(freq_test)}, ker-H duration:{1000 * kernel_duration:0.1f} ms, num-samples:{int(kernel_duration * fs)}"
     )
     plt.legend()
     plt.xlabel("time (sec)")
@@ -202,5 +217,5 @@ def main():
     # test_moving_target()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

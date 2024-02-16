@@ -14,6 +14,7 @@ from micloc.utils import Envelope
 
 def test_envelope():
     import matplotlib.pyplot as plt
+
     # a simple sinusoid signal
     freq = 1
     num_period = 20
@@ -21,7 +22,9 @@ def test_envelope():
     fs = 100 * freq
 
     time_in = np.arange(0, duration, step=1 / fs)
-    sig_in = np.asarray([np.sin(2 * np.pi * freq * time_in), np.cos(2 * np.pi * freq * time_in)]).T
+    sig_in = np.asarray(
+        [np.sin(2 * np.pi * freq * time_in), np.cos(2 * np.pi * freq * time_in)]
+    ).T
 
     num_chan = sig_in.shape[1]
 
@@ -47,5 +50,5 @@ def test_envelope():
     plt.show()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_envelope()

@@ -32,10 +32,10 @@ def use_latex():
             "axes.linewidth": 0.5,
             "lines.linewidth": 1.0,
             "grid.linewidth": 0.5,
-            'xtick.major.width': 0.5,
-            'ytick.major.width': 0.5,
-            'xtick.major.size': 2,
-            'ytick.major.size': 2,
+            "xtick.major.width": 0.5,
+            "ytick.major.width": 0.5,
+            "xtick.major.size": 2,
+            "ytick.major.size": 2,
             #     "pgf.texsystem": "xelatex",
             #     "font.family": "Helvetica",
             #     "text.usetex": True,
@@ -159,7 +159,9 @@ def array_resolution_sin():
         # plot the array resolution
         corr = np.abs(bf_mat_comp.conj().T @ bf_mat_comp)
 
-        plot_beampattern(doa_list, corr, f"$F= {freq_design / 1000:0.0f}$ kHz", filename)
+        plot_beampattern(
+            doa_list, corr, f"$F= {freq_design / 1000:0.0f}$ kHz", filename
+        )
 
     if not SAVE_PLOTS:
         plt.show()
@@ -252,7 +254,12 @@ def array_resolution_wideband():
         # corr = np.abs(bf_mat.conj().T @ bf_mat)
         corr = np.abs(bf_mat_comp.conj().T @ bf_mat_comp)
 
-        plot_beampattern(doa_list, corr, f"$F_c= {center_freq / 1000:0.0f}$ kHz, $B={bandwidth / 1000:0.0f}$ kHz", filename)
+        plot_beampattern(
+            doa_list,
+            corr,
+            f"$F_c= {center_freq / 1000:0.0f}$ kHz, $B={bandwidth / 1000:0.0f}$ kHz",
+            filename,
+        )
 
     if not SAVE_PLOTS:
         plt.show()

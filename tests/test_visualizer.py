@@ -24,11 +24,14 @@ def test_visualizer():
         waiting_time=2,
     )
 
-    vz.start(figsize=(16, 10), xlabel="time", ylabel="power of voice",
-             title="power of voice signal received from microphone",
-             grid=True,
-             label="just a simple random number",
-             )
+    vz.start(
+        figsize=(16, 10),
+        xlabel="time",
+        ylabel="power of voice",
+        title="power of voice signal received from microphone",
+        grid=True,
+        label="just a simple random number",
+    )
 
     while True:
         # generate a random direction
@@ -45,5 +48,5 @@ def main():
     test_visualizer()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

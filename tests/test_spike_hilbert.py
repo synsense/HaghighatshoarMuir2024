@@ -25,11 +25,11 @@ def test_spike_hilbert():
 
     # use a noisy signal
     order = 2
-    cutoff = [0.9*freq, freq]
-    btype ='pass'
-    
+    cutoff = [0.9 * freq, freq]
+    btype = "pass"
+
     noise = np.random.randn(len(time_vec))
-    b, a = butter(order, cutoff, analog=False, btype=btype, output='ba', fs=fs)
+    b, a = butter(order, cutoff, analog=False, btype=btype, output="ba", fs=fs)
     sig_in = lfilter(b, a, noise)
 
     target_spike_rate = 500
@@ -50,8 +50,8 @@ def test_spike_hilbert():
     sig_h = sig_in[:-1] + 1j * sig_in_h
 
     # apply the Kernel in the filter
-    tau = 1.5/(2*np.pi*freq)
-    neuron_kernel = time_vec * np.exp(-time_vec/tau)
+    tau = 1.5 / (2 * np.pi * freq)
+    neuron_kernel = time_vec * np.exp(-time_vec / tau)
     neuron_kernel /= np.mean(neuron_kernel)
 
     sig_h_filtered = lfilter(neuron_kernel, [1], sig_h)
@@ -64,7 +64,9 @@ def test_spike_hilbert():
     plt.plot(time_vec[:-1], sig_in_h)
     plt.grid(True)
     plt.ylabel("Spike trans")
-    plt.title(f"Hilbert transform of spikes: kernel-duration: {kernel_duration:0.4f}, kernel-length:{kernel_length}")
+    plt.title(
+        f"Hilbert transform of spikes: kernel-duration: {kernel_duration:0.4f}, kernel-length:{kernel_length}"
+    )
 
     plt.subplot(312)
     plt.plot(time_vec[:-1], np.real(sig_h_filtered))
@@ -83,5 +85,5 @@ def main():
     test_spike_hilbert()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
