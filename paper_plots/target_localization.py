@@ -226,7 +226,7 @@ def test_speech_target():
             # extract the beamformed signal
             sig_bf = beamf.apply_to_template(
                 bf_mat=bf_mat,
-                template=(time_test, sig_test, doa_target),
+                template=(time_fs, sig_test, doa_target),
                 snr_db=snr_db_target,
             )
 

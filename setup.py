@@ -17,12 +17,11 @@ setup(
     install_requires=[
         "numpy",
         "scipy",
-        "rockpool",
+        "rockpool[xylo, torch]",
         "tqdm",
         "matplotlib",
         "cvxpy",
-        "xylosim",
-        "bitstruct",
         "soundfile",
+        "pkg-config",
     ],
 )
