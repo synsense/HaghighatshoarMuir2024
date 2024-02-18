@@ -56,7 +56,7 @@ def use_latex():
     plt.rc("figure", titlesize=SMALL_SIZE)  # fontsize of the figure title
 
 
-SAVE_PLOTS = False
+SAVE_PLOTS = True
 
 if SAVE_PLOTS:
     use_latex()

@@ -35,11 +35,10 @@ This will install the package and all required dependencies.
 
 ## Generating the figures
 
-The figure generation scripts are in subdirectory `/paper_plots` . Run all of the python files in turn to generate figures.
+The figure generation scripts are in subdirectory `/paper_plots` . Run all of the python files in turn to generate figures, **from the base directory**.
 
 ```bash
-> cd paper_plots
-> python SCRIPT_NAME.py
+> python paper_plots/SCRIPT_NAME.py
 ...
 ```
 
@@ -61,8 +60,8 @@ These scripts analyse the performance of the various beamforming and DoA estimat
 
 | Script name                            | Method                                                       |
 | -------------------------------------- | ------------------------------------------------------------ |
-| `target_localization_MUSIC.py`         | MUSIC algorithm                                              |
 | `target_localization.py`               | Hilbert beamforming and DoA estimation (non-SNN implementation) |
+| `target_localization_MUSIC.py`         | MUSIC algorithm                                              |
 | `target_snn_localization.py`           | Hilbert beamforming with RZCC encoding and SNN inference for DoA estimation |
 | `target_xylo_localization.py`          | Hilbert beamforming and DoA estimation implementation using the Xylo™ architecture, using bipolar RZCC spikes (+1, -1). |
 | `target_xylo_unipolar_localization.py` | Hilbert beamforming and DoA estimation implementation using the Xylo™ architecture, using unipolar RZCC spikes (+1). |
@@ -77,3 +76,19 @@ These scripts analyse the performance of the various beamforming and DoA estimat
 | `short_hilbert_transform.py`     | Visualise the frequency spectrum and performance of the STHT and RZCC encoding. |
 | `chirp_phase_plot.py`            | Visualise the instantaneous phase of a chirp signal.         |
 
+# Running demos
+
+If you happen to have a microphone array development board connected to your PC, you can run a live demo of the localization algorithm. The demos assume you can record a seven-stream audio input. The scripts are all in the `micloc` directory:
+
+```bash
+> python micloc/SCRIPT_NAME.py
+...
+```
+
+
+
+| Script name                  | Method                                                       |
+| ---------------------------- | ------------------------------------------------------------ |
+| `localization_demo.py`       | Hilbert beamforming and DoA estimation (non-SNN implementation) |
+| `localization_demo_snn.py`   | Hilbert beamforming with RZCC encoding and SNN inference for DoA estimation |
+| `localization_demo_MUSIC.py` | MUSIC algorithm                                              |

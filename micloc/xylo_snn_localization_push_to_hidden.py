@@ -14,7 +14,7 @@
 #
 # last update: 14.11.2023
 # ----------------------------------------------------------------------------------------------------------------------
-from archive.record import AudioRecorder
+from micloc.record import AudioRecorder
 from micloc.visualizer import Visualizer
 
 from micloc.snn_beamformer import SNNBeamformer

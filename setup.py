@@ -23,5 +23,6 @@ setup(
         "cvxpy",
         "xylosim",
         "bitstruct",
+        "soundfile",
     ],
 )

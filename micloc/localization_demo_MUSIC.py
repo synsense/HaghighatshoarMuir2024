@@ -9,7 +9,7 @@
 #
 # last update: 25.01.2024
 # ----------------------------------------------------------------------------------------------------------------------
-from archive.record import AudioRecorder
+from micloc.record import AudioRecorder
 from micloc.visualizer import Visualizer
 
 from micloc.array_geometry import ArrayGeometry, CenterCircularArray
