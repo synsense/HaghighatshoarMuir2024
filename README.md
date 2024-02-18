@@ -20,9 +20,18 @@ We achieve state-of-the-art accuracy for SNN methods, comparable with traditiona
 
 ## Installation
 
-* Install the `multimic` package. We recommend using a fresh `conda` or other python environment
-  `> pip install multimic`
-  This will install the package and all required dependencies.
+Install the `multimic` package. We recommend using a fresh `conda` or other python environment:
+
+```bash
+> git clone https://github.com/synsense/HaghighatshoarMuir2024.git
+> cd HaghighatshoarMuir2024
+> conda create --name HaghighatshoarMuir2024 python cmake
+...
+> conda activate HaghighatshoarMuir2024
+> pip install .
+```
+
+This will install the package and all required dependencies.
 
 ## Generating the figures
 
