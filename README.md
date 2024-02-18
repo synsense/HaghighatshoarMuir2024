@@ -25,13 +25,15 @@ Install the `multimic` package. We recommend using a fresh `conda` or other pyth
 ```bash
 > git clone https://github.com/synsense/HaghighatshoarMuir2024.git
 > cd HaghighatshoarMuir2024
-> conda create --name HaghighatshoarMuir2024 python cmake
+> conda create --name HaghighatshoarMuir2024 python=3.8 cmake
 ...
 > conda activate HaghighatshoarMuir2024
 > pip install .
 ```
 
 This will install the package and all required dependencies.
+
+All packages and code have been tested with Python 3.8. `cmake` is required to build some dependencies.
 
 ## Generating the figures
 
