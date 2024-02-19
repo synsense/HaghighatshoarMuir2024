@@ -1,2 +1,8 @@
 */__pycache__/*
 *.egg-info
+figures/beam_patterns_supp/beam_patterns_supp.pdf
+figures/hilbert_beamforming/hilbert_beamforming.pdf
+figures/MUSIC_localization_supp/music_localization_supp.pdf
+figures/SNN_localization/SNN_localization.pdf
+figures/STHT_RZCC_encoding/short-time-HT_robust-ZC-encoding.pdf
+figures/xylo_localization_supp/xylo_localization.pdf
