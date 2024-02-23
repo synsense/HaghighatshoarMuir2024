@@ -1,6 +1,6 @@
 # SNN-based audio source localization from a multi-microphone array, using the Hilbert transformation
 
-This repository accompanies the paper "Low-power SNN-based audio source localisation using a Hilbert Transform spike encoding scheme" (DOI XXX).
+This repository accompanies the paper "Low-power SNN-based audio source localisation using a Hilbert Transform spike encoding scheme" (https://arxiv.org/abs/2402.11748).
 
 A Python implementation of a beamforming library is provided, as well as demos of live localisation using SNN inference, and scripts to generate all results figures in the paper.
 
