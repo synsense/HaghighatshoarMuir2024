@@ -14,7 +14,7 @@
 from operator import ge
 import numpy as np
 
-from micloc.array_geometry import LinearArray
+from micloc.array_geometry import Random2DArray
 from micloc.music_beamformer import MUSIC
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
@@ -94,7 +94,7 @@ def array_resolution_sin():
     """
     # find the directory for this file
     root = os.path.join(
-        Path(__file__).resolve().parent, "array_resolution_linear_music_sin"
+        Path(__file__).resolve().parent, "array_resolution_random_music_sin"
     )
 
     if not os.path.exists(root):
@@ -102,14 +102,12 @@ def array_resolution_sin():
 
     # build a geometry
     radius = 4.5e-2
-    whole_span = 2 * radius
-    num_mic = 7
-    spacing = whole_span / num_mic
+    num_mic = 13
     fs = 48_000
 
     # geometry = CenterCircularArray(radius=radius, num_mic=num_mic)
-    geometry = LinearArray(
-        spacing=spacing,
+    geometry = Random2DArray(
+        radius=radius,
         num_mic=num_mic,
     )
 
@@ -209,4 +207,5 @@ def main():
 
 
 if __name__ == "__main__":
+    np.random.seed(1)
     main()

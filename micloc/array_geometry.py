@@ -108,3 +108,15 @@ class LinearArray(ArrayGeometry):
         theta_vec = np.pi / 2 * np.ones(num_mic)
 
         super().__init__(r_vec=r_vec, theta_vec=theta_vec, speed=speed)
+
+
+class Random2DArray(ArrayGeometry):
+    def __init__(
+        self, radius: float, num_mic: int, speed: float = SOUND_SPEED_IN_OPEN_AIR
+    ):
+        r_vec = np.sqrt(np.random.rand(num_mic)) * radius
+        theta_vec = np.random.rand(num_mic) * 2 * np.pi
+
+        super().__init__(r_vec=r_vec, theta_vec=theta_vec, speed=speed)
+
+        self.radius = radius

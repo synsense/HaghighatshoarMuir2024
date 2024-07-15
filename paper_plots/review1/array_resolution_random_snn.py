@@ -13,7 +13,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 import numpy as np
 
-from micloc.array_geometry import LinearArray
+from micloc.array_geometry import Random2DArray
 from micloc.snn_beamformer import SNNBeamformer
 from micloc.utils import Envelope
 import matplotlib.pyplot as plt
@@ -103,7 +103,7 @@ def array_resolution_sin():
     """
     # find the directory for this file
     root = os.path.join(
-        Path(__file__).resolve().parent, "array_resolution_linear_snn_sin"
+        Path(__file__).resolve().parent, "array_resolution_random_snn_sin"
     )
 
     if not os.path.exists(root):
@@ -111,14 +111,12 @@ def array_resolution_sin():
 
     # build a geometry
     radius = 4.5e-2
-    whole_span = 2 * radius
-    num_mic = 7
-    spacing = whole_span / num_mic
+    num_mic = 13
     fs = 48_000
 
     # geometry = CenterCircularArray(radius=radius, num_mic=num_mic)
-    geometry = LinearArray(
-        spacing=spacing,
+    geometry = Random2DArray(
+        radius=radius,
         num_mic=num_mic,
     )
 
@@ -186,7 +184,7 @@ def array_resolution_wideband():
     """
     # find the directory for this file
     root = os.path.join(
-        Path(__file__).resolve().parent, "array_resolution_linear_snn_wideband"
+        Path(__file__).resolve().parent, "array_resolution_random_snn_wideband"
     )
 
     if not os.path.exists(root):
@@ -194,14 +192,12 @@ def array_resolution_wideband():
 
     # build a geometry
     radius = 4.5e-2
-    whole_span = 2 * radius
-    num_mic = 7
-    spacing = whole_span / num_mic
+    num_mic = 13
     fs = 48_000
 
     # geometry = CenterCircularArray(radius=radius, num_mic=num_mic)
-    geometry = LinearArray(
-        spacing=spacing,
+    geometry = Random2DArray(
+        radius=radius,
         num_mic=num_mic,
     )
 
@@ -286,8 +282,10 @@ def array_resolution_wideband():
 
 
 def main():
-    array_resolution_sin()
-    # plot_beampattern()
+    # np.random.seed(1)
+    # array_resolution_sin()
+
+    np.random.seed(1)
     array_resolution_wideband()
 
 
