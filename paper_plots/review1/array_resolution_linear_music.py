@@ -111,6 +111,7 @@ def array_resolution_sin():
     geometry = LinearArray(
         spacing=spacing,
         num_mic=num_mic,
+        radius=radius,
     )
 
     # build beamformer matrix for various DoAs

@@ -120,6 +120,7 @@ def array_resolution_sin():
     geometry = LinearArray(
         spacing=spacing,
         num_mic=num_mic,
+        radius=radius,
     )
 
     # build the corresponding beamformer
@@ -203,6 +204,7 @@ def array_resolution_wideband():
     geometry = LinearArray(
         spacing=spacing,
         num_mic=num_mic,
+        radius=radius,
     )
 
     # build the corresponding beamformer
