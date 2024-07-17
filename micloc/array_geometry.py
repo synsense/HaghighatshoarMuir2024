@@ -105,6 +105,11 @@ class LinearArray(ArrayGeometry):
             num_mic (int): number of microphones in the array.
         """
         r_vec = spacing * np.arange(num_mic)
-        theta_vec = np.pi / 2 * np.ones(num_mic)
+        
+        # for an array lying on the y axis
+        # theta_vec = np.pi / 2 * np.ones(num_mic)
+
+        # for an array lying on the x axis
+        theta_vec = np.zeros(num_mic)
 
         super().__init__(r_vec=r_vec, theta_vec=theta_vec, speed=speed)
