@@ -11,6 +11,7 @@
 #
 # last update: 08.07.2024
 # ----------------------------------------------------------------------------------------------------------------------
+from cmath import phase
 import numpy as np
 
 from micloc.array_geometry import LinearArray
@@ -70,14 +71,25 @@ def plot_beampattern(doa_list, corr, title, filename):
     plt.figure(figsize=[35 * mm, 35 * mm])
     gs = gridspec.GridSpec(1, 1)
     ax1 = plt.subplot(gs[0], polar=True)
+    ax1.set_thetamax(180)
     # ax2 = plt.subplot(gs[1], polar=False)
 
-    ax1.plot(doa_list, np.abs(corr[0]), label="beam pattern")
-    ax1.plot(doa_list, np.abs(corr[len(corr)//8]), label="beam pattern")
-    #ax1.plot(doa_list, np.abs(corr[2*len(corr)//16]), label="beam pattern")
+    # selected DoAs to be plotted
+    selected_doa = [0, np.pi/2, 2*np.pi/3]
+
+    # find the corresponding indices
+    selected_indices = []
+    for doa in selected_doa:
+        index = np.argmin(np.abs(doa_list - doa))
+        selected_indices.append(index)
+    
+    for index in selected_indices:
+        ax1.plot(doa_list, np.abs(corr[index]), label="beam pattern")
+    
     ax1.set_title(title)
     ax1.grid(True)
-    ax1.set_xticks(np.arange(0/180*np.pi, 45 / 180 * np.pi, 360 / 180 * np.pi))
+    EPS = 0.0001
+    ax1.set_xticks(np.arange(0/180*np.pi, 180 / 180 * np.pi, (60-EPS)/ 180 * np.pi))
     ax1.set_yticks([0.25, 0.5, 0.75, 1.0])
     ax1.set_yticklabels([])
 
@@ -152,11 +164,21 @@ def array_resolution_sin():
         )
 
         time_temp = np.arange(0, duration, step=1 / fs)
-        sig_temp = np.sin(2 * np.pi * freq_design * time_temp)
+
+        # NOTE: a little bit of phase jitter was added to sinusoids to make the zero-crossing less sensitive to the sampling rate
+        # this is quite valid in practice since in reality we cannot have pure tunes for which the zero-crossings may be badly aligned
+        # at low sampling rate
+        # One can see that with this little change, the beam pattern becomes quite smooth compared to when there is almost no jitter.
+        EPS = 0.01
+        freq_inst = freq_design * (1 + EPS*np.random.randn(len(time_temp)))
+        dt = 1/fs
+        phase_inst = 2*np.pi*np.cumsum(freq_inst) * dt
+        sig_temp = np.sin(phase_inst)
+        # sig_temp = np.sin(2 * np.pi * freq_design * time_temp)
 
         # 2. use an angular grid
         num_grid = 64 * num_mic + 1
-        doa_list = np.linspace(-np.pi, np.pi, num_grid) + np.pi
+        doa_list = np.linspace(0, np.pi, num_grid)
 
         bf_mat = beamf.design_from_template(
             template=(time_temp, sig_temp), doa_list=doa_list
