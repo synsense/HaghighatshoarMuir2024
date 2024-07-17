@@ -37,6 +37,39 @@ from rockpool.transform import quantize_methods as q
 from scipy.signal import lfilter
 import time
 
+from numbers import Number
+from typing import Tuple
+
+
+def signal_from_template(
+    geometry: ArrayGeometry, template: Tuple[np.ndarray, np.ndarray, np.ndarray]
+) -> np.ndarray:
+    """this function builds the audio signal received from the microphone from the template signal.
+
+    Args:
+        geometry (ArrayGeometry): array geometry.
+        template (Tuple[np.ndarray, np.ndarray]): template signal containing (time_temp, sig_temp, doa_temp).
+
+    Returns:
+        np.ndarray: `T x num_mic` signal received in the array.
+    """
+
+    time_temp, sig_temp, doa_temp = template
+
+    if isinstance(doa_temp, Number):
+        doa_temp = doa_temp * np.ones_like(time_temp)
+
+    # compute the delay time-series
+    delays = np.asarray([geometry.delays(doa, normalized=False) for doa in doa_temp])
+    time_delays = time_temp.reshape(-1, 1) + delays
+
+    # `T x num_mic` signal received at the input of the array
+    sig_in = np.interp(time_delays.ravel(), time_temp, sig_temp).reshape(
+        *time_delays.shape
+    )
+
+    return sig_in
+
 
 class Demo:
     def __init__(
@@ -134,7 +167,7 @@ class Demo:
 
         # this change of timing is needed in chip version to let it work but not necessary in XyloSim version although
         # it is also ok since there is no time in XyloSim and as far as scaling is concerned, we have no issue!
-        target_dt = 1.0e-3
+        target_dt = 1e-3
         self._initialize_snn_module(target_dt=target_dt)
 
     def _initialize_snn_module(self, target_dt: float):
@@ -567,28 +600,63 @@ class Demo:
                 + "to reduce the number of input channels as much as possible (hopefully to 16 or lower)!\n"
             )
 
-        spk_rate = 1_000
-        T = 48_000 * 2
-        target_duration = T / self.fs
+        # build a geometry
+        radius = 4.5e-2
+        num_mic = 7
+        fs = 48_000
 
-        spk_prob = spk_rate / self.fs
+        freq_design = 2_000
+        freq_range = [0.5 * freq_design, freq_design]
 
-        spikes_in = (np.random.rand(T, num_ch_in) < spk_prob).astype(np.int64)
+        geometry = CenterCircularArray(radius=radius, num_mic=num_mic)
 
-        board.reset_state()
+        # modify SNR to take bandwidth into account
+        snr_db = 20.0
+        fs = 48_000
+        freq_design = 2_000
+        freq_range = [0.5 * freq_design, freq_design]
+        f_min, f_max = freq_range
+        snr_gain_due_to_bandwidth = (fs / 2) / (f_max - f_min)
+        snr_db_bandwidth = snr_db - 10 * np.log10(snr_gain_due_to_bandwidth)
+        snr_bandwidth = 10 ** (snr_db_bandwidth / 10)
+
+        # - use a sinusoid signal
+        target_duration = 2.0
+        freq_test = (f_min + f_max) / 2
+        time_test = np.arange(0, target_duration, step=1 / fs)
+        sig_test = np.sin(2 * np.pi * freq_test * time_test)
+
+        # use fixed doa for the test
+        doa_target = 0.0
+
+        # compute the input signal received from the array
+        sig_in = signal_from_template(
+            template=(time_test, sig_test, doa_target), geometry=geometry
+        )
+
+        # add noise to the test signal
+        sig_pow = np.mean(sig_in**2)
+        noise_sigma = np.sqrt(sig_pow / snr_bandwidth)
+
+        sig_in_noisy = sig_in + noise_sigma * np.random.randn(*sig_in.shape)
+
+        # apply spike encoding to get the spikes
+        spikes_in = self.spike_encoding(sig_in=sig_in_noisy)
+
+        # board.reset_state()
 
         # - Sleep to ensure Xylo is flushed
-        time.sleep(1.0)
+        # time.sleep(1.0)
 
-        print("spikes were pushed to the board and they are being processed ....")
-        start = time.time()
+        print("spikes are pushed to the board to be processed ....")
         _, _, rec = board(spikes_in, record=False, record_power=True)
-        real_duration = time.time() - start
+        real_duration = rec["inf_duration"]
 
         power_scale = real_duration / target_duration
 
         print("Done processing!")
         print(f"Clock rate: {clock_rate}")
+        print(f"Target dt: {self.xylo.dt}")
         print("real processing time on board: ", real_duration)
         print("expected processing time (for online demo) on board: ", target_duration)
         print(f"Power scale factor: {power_scale}")
