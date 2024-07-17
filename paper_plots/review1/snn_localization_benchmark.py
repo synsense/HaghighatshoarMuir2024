@@ -109,7 +109,15 @@ class DemoBenchmark:
 
             # build the template signal and design bemforming vectors
             time_temp = np.arange(0, recording_duration, step=1 / fs)
-            sig_temp = np.sin(2 * np.pi * freq_mid * time_temp)
+
+            # NOTE: as we hav enoticed in the beam-pattern plots, the results are a little bit unstable for pure sinusoid signals.
+            # This is due to the fact that its zero-crossing is bandly affected by low sampling rate.
+            # To avoid this, we decided to add some random jitter to the frequency.
+            EPS = 0.01
+            freq_inst = freq_mid * (1 + EPS * np.random.randn(*time_temp.shape))
+            dt = 1/fs 
+            phase_inst = 2*np.pi*np.cumsum(freq_inst) * dt
+            sig_temp = np.sin(phase_inst)
 
             bf_vecs = beamf.design_from_template(
                 template=(time_temp, sig_temp), doa_list=doa_list
@@ -120,7 +128,7 @@ class DemoBenchmark:
         self.tau_vecs = np.asarray(self.tau_vecs)
 
         # build a filterbank for various frequency bands covered by the array
-        order = 1
+        order = 2
         self.filterbank = ButterworthFilterbank(
             freq_bands=freq_bands, order=order, fs=fs
         )
@@ -523,8 +531,8 @@ def benchmark(num_samples: int, frame_duration: float, filename:str):
 
     # frequency range
     freq_bands = [
-        [1600, 1900],
-        # [2700, 3000],
+        # [1600, 1900],
+        [2700, 3000],
         # [3700, 4000]
     ]
 
