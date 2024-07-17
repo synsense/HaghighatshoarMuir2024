@@ -22,4 +22,13 @@ paper_plots/two_exp_phase_plots
 paper_plots/xylo_fixed_target
 paper_plots/phase_chirp_plot
 paper_plots/xylo_fixed_target_unipolar
+paper_plots/review1/array_resolution_linear_music_sin
+paper_plots/review1/array_resolution_linear_snn_sin
+paper_plots/review1/array_resolution_linear_snn_wideband
+paper_plots/review1/array_resolution_random_music_sin
+paper_plots/review1/array_resolution_random_snn_sin
+paper_plots/review1/array_resolution_random_snn_wideband
+*.pyc
 samna.log
+figures/beam_patterns_linear_supp/beam_patterns_linear_supp.pdf
+figures/beam_patterns_random_supp/beam_patterns_random_supp.pdf

@@ -77,7 +77,7 @@ def plot_beampattern(doa_list, corr, title, filename, geometry):
     # ax1.plot(doa_list, np.abs(corr[2*len(corr)//16]), label="beam pattern")
     ax1.set_title(title)
     ax1.grid(True)
-    ax1.set_xticks(np.arange(0 / 180 * np.pi, 45 / 180 * np.pi, 360 / 180 * np.pi))
+    ax1.set_xticks(np.arange(0 / 180 * np.pi, 360 / 180 * np.pi, 60 / 180 * np.pi))
     ax1.set_yticks([0.25, 0.5, 0.75, 1.0])
     ax1.set_yticklabels([])
 
@@ -282,8 +282,8 @@ def array_resolution_wideband():
 
 
 def main():
-    # np.random.seed(1)
-    # array_resolution_sin()
+    np.random.seed(1)
+    array_resolution_sin()
 
     np.random.seed(1)
     array_resolution_wideband()
