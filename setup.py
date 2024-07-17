@@ -22,6 +22,6 @@ setup(
         "matplotlib",
         "cvxpy",
         "soundfile",
-        "pkg-config",
+        # "pkg-config",
     ],
 )

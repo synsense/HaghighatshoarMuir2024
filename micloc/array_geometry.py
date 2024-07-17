@@ -96,7 +96,11 @@ class CenterCircularArray(ArrayGeometry):
 
 class LinearArray(ArrayGeometry):
     def __init__(
-        self, spacing: float, num_mic: int, speed: float = SOUND_SPEED_IN_OPEN_AIR
+        self,
+        spacing: float,
+        num_mic: int,
+        radius: float,
+        speed: float = SOUND_SPEED_IN_OPEN_AIR,
     ):
         """
         class for encoding the array geometry for a linear array.
@@ -104,12 +108,24 @@ class LinearArray(ArrayGeometry):
             spacing (float): the spacing between array elements.
             num_mic (int): number of microphones in the array.
         """
-        r_vec = spacing * np.arange(num_mic)
-        
-        # for an array lying on the y axis
-        # theta_vec = np.pi / 2 * np.ones(num_mic)
 
-        # for an array lying on the x axis
+        r_vec = spacing * (np.arange(-num_mic / 2, num_mic / 2) + 0.5)
         theta_vec = np.zeros(num_mic)
 
+        theta_vec[r_vec < 0] += np.pi
+        r_vec[r_vec < 0] = np.abs(r_vec[r_vec < 0])
+
         super().__init__(r_vec=r_vec, theta_vec=theta_vec, speed=speed)
+        self.radius = radius
+
+
+class Random2DArray(ArrayGeometry):
+    def __init__(
+        self, radius: float, num_mic: int, speed: float = SOUND_SPEED_IN_OPEN_AIR
+    ):
+        r_vec = np.sqrt(np.random.rand(num_mic)) * radius
+        theta_vec = np.random.rand(num_mic) * 2 * np.pi
+
+        super().__init__(r_vec=r_vec, theta_vec=theta_vec, speed=speed)
+
+        self.radius = radius

@@ -3,18 +3,17 @@
 # This module obtains array beam pattern for the SNN version.
 #
 # NOTE: this file was added for review1 to address checking another geometry for multi-mic array.
-# NOTE: in this file, we address a linear array geometry rather than the circular one used for the previous submission.
+# NOTE: in this file, we address a random array geometry rather than the circular one used for the previous submission.
 #
 # (C) Saeid Haghighatshoar
 # email: saeid.haghighatshoar@synsense.ai
 #
 #
-# last update: 08.07.2024
+# last update: 17.07.2024
 # ----------------------------------------------------------------------------------------------------------------------
-from cmath import phase
 import numpy as np
 
-from micloc.array_geometry import LinearArray
+from micloc.array_geometry import Random2DArray
 from micloc.snn_beamformer import SNNBeamformer
 from micloc.utils import Envelope
 import matplotlib.pyplot as plt
@@ -71,25 +70,14 @@ def plot_beampattern(doa_list, corr, title, filename, geometry):
     plt.figure(figsize=[35 * mm, 35 * mm])
     gs = gridspec.GridSpec(1, 1)
     ax1 = plt.subplot(gs[0], polar=True)
-    ax1.set_thetamax(180)
     # ax2 = plt.subplot(gs[1], polar=False)
 
-    # selected DoAs to be plotted
-    selected_doa = [0, np.pi/2, 2*np.pi/3]
-
-    # find the corresponding indices
-    selected_indices = []
-    for doa in selected_doa:
-        index = np.argmin(np.abs(doa_list - doa))
-        selected_indices.append(index)
-    
-    for index in selected_indices:
-        ax1.plot(doa_list, np.abs(corr[index]), label="beam pattern")
-    
+    ax1.plot(doa_list, np.abs(corr[0]), label="beam pattern")
+    ax1.plot(doa_list, np.abs(corr[len(corr) // 8]), label="beam pattern")
+    # ax1.plot(doa_list, np.abs(corr[2*len(corr)//16]), label="beam pattern")
     ax1.set_title(title)
     ax1.grid(True)
-    EPS = 0.0001
-    ax1.set_xticks(np.arange(0/180*np.pi, 180 / 180 * np.pi, (60-EPS)/ 180 * np.pi))
+    ax1.set_xticks(np.arange(0 / 180 * np.pi, 45 / 180 * np.pi, 360 / 180 * np.pi))
     ax1.set_yticks([0.25, 0.5, 0.75, 1.0])
     ax1.set_yticklabels([])
 
@@ -115,7 +103,7 @@ def array_resolution_sin():
     """
     # find the directory for this file
     root = os.path.join(
-        Path(__file__).resolve().parent, "array_resolution_linear_snn_sin"
+        Path(__file__).resolve().parent, "array_resolution_random_snn_sin"
     )
 
     if not os.path.exists(root):
@@ -123,16 +111,13 @@ def array_resolution_sin():
 
     # build a geometry
     radius = 4.5e-2
-    whole_span = 2 * radius
-    num_mic = 7
-    spacing = whole_span / num_mic
+    num_mic = 13
     fs = 48_000
 
     # geometry = CenterCircularArray(radius=radius, num_mic=num_mic)
-    geometry = LinearArray(
-        spacing=spacing,
-        num_mic=num_mic,
+    geometry = Random2DArray(
         radius=radius,
+        num_mic=num_mic,
     )
 
     # build the corresponding beamformer
@@ -169,21 +154,11 @@ def array_resolution_sin():
         )
 
         time_temp = np.arange(0, duration, step=1 / fs)
-
-        # NOTE: a little bit of phase jitter was added to sinusoids to make the zero-crossing less sensitive to the sampling rate
-        # this is quite valid in practice since in reality we cannot have pure tunes for which the zero-crossings may be badly aligned
-        # at low sampling rate
-        # One can see that with this little change, the beam pattern becomes quite smooth compared to when there is almost no jitter.
-        EPS = 0.01
-        freq_inst = freq_design * (1 + EPS*np.random.randn(len(time_temp)))
-        dt = 1/fs
-        phase_inst = 2*np.pi*np.cumsum(freq_inst) * dt
-        sig_temp = np.sin(phase_inst)
-        # sig_temp = np.sin(2 * np.pi * freq_design * time_temp)
+        sig_temp = np.sin(2 * np.pi * freq_design * time_temp)
 
         # 2. use an angular grid
         num_grid = 64 * num_mic + 1
-        doa_list = np.linspace(0, np.pi, num_grid)
+        doa_list = np.linspace(-np.pi, np.pi, num_grid) + np.pi
 
         bf_mat = beamf.design_from_template(
             template=(time_temp, sig_temp), doa_list=doa_list
@@ -209,7 +184,7 @@ def array_resolution_wideband():
     """
     # find the directory for this file
     root = os.path.join(
-        Path(__file__).resolve().parent, "array_resolution_linear_snn_wideband"
+        Path(__file__).resolve().parent, "array_resolution_random_snn_wideband"
     )
 
     if not os.path.exists(root):
@@ -217,16 +192,13 @@ def array_resolution_wideband():
 
     # build a geometry
     radius = 4.5e-2
-    whole_span = 2 * radius
-    num_mic = 7
-    spacing = whole_span / num_mic
+    num_mic = 13
     fs = 48_000
 
     # geometry = CenterCircularArray(radius=radius, num_mic=num_mic)
-    geometry = LinearArray(
-        spacing=spacing,
-        num_mic=num_mic,
+    geometry = Random2DArray(
         radius=radius,
+        num_mic=num_mic,
     )
 
     # build the corresponding beamformer
@@ -310,8 +282,10 @@ def array_resolution_wideband():
 
 
 def main():
-    array_resolution_sin()
-    # plot_beampattern()
+    # np.random.seed(1)
+    # array_resolution_sin()
+
+    np.random.seed(1)
     array_resolution_wideband()
 
 
