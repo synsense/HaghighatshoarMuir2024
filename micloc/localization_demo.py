@@ -107,6 +107,7 @@ class Demo:
 
         vz.start(
             figsize=(16, 10),
+            linewidth=3,
             xlabel="time",
             ylabel="DoA of the incoming audio",
             title=f"DoA estimation using multi-mic devkit with a circular array with 7 mics",

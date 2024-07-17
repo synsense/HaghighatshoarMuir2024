@@ -157,6 +157,10 @@ class Visualizer:
                 break
 
             plt.clf()
+            plt.xticks(fontsize=25)
+            plt.yticks(fontsize=25)
+            font_title = {'color':'blue','size':25}
+            font_label = {'color':'black','size':20}
             plt.plot(
                 time_vec,
                 buffer,
@@ -166,9 +170,9 @@ class Visualizer:
             )
             if fig_args["label"] != "":
                 plt.legend()
-            plt.xlabel(fig_args["xlabel"])
-            plt.ylabel(fig_args["ylabel"])
-            plt.title(fig_args["title"])
+            plt.xlabel(fig_args["xlabel"], fontdict=font_label)
+            plt.ylabel(fig_args["ylabel"], fontdict=font_label)
+            plt.title(fig_args["title"], fontdict=font_title)
             plt.grid(fig_args["grid"])
             plt.draw()
 
