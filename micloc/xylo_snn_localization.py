@@ -554,7 +554,7 @@ class Demo:
         )
         print("+" * 150)
 
-        clock_rate = 6.25
+        clock_rate = 50.0
 
         # try to connect to hardware or check if it is already connected
         if not self.xylosim_version:
@@ -642,6 +642,9 @@ class Demo:
 
         # apply spike encoding to get the spikes
         spikes_in = self.spike_encoding(sig_in=sig_in_noisy)
+
+        # - Provide no input spikes, to ensure as fast as possible inference operation
+        spikes_in = np.zeros_like(spikes_in)
 
         # board.reset_state()
 
