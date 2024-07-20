@@ -42,6 +42,7 @@ import matplotlib.pyplot as plt
 
 import os
 from pathlib import Path
+from datetime import datetime
 
 
 class DemoBenchmark:
@@ -110,15 +111,28 @@ class DemoBenchmark:
             # build the template signal and design bemforming vectors
             time_temp = np.arange(0, recording_duration, step=1 / fs)
 
+            #! template 1: A sinusoid at the middle frequency
             # NOTE: as we hav enoticed in the beam-pattern plots, the results are a little bit unstable for pure sinusoid signals.
             # This is due to the fact that its zero-crossing is bandly affected by low sampling rate.
             # To avoid this, we decided to add some random jitter to the frequency.
-            EPS = 0.01
+            EPS = 0.05
             freq_inst = freq_mid * (1 + EPS * np.random.randn(*time_temp.shape))
             dt = 1/fs 
             phase_inst = 2*np.pi*np.cumsum(freq_inst) * dt
             sig_temp = np.sin(phase_inst)
 
+            #! template 2: A chirp spanning the whole frequency range
+            num_period = 1
+            period = (time_temp[-1] - time_temp[0])/num_period
+            f_start, f_end = freq_range 
+
+            freq_inst = f_start + (f_end - f_start) * (time_temp % period)/period
+            dt = 1/fs
+            phase_inst = 2*np.pi * np.cumsum(freq_inst) * dt
+
+            sig_temp = np.sin(phase_inst)
+
+            # build the beamforming vectors using templates
             bf_vecs = beamf.design_from_template(
                 template=(time_temp, sig_temp), doa_list=doa_list
             )
@@ -485,6 +499,7 @@ class DemoBenchmark:
 
                 # compute the DoA of the strongest target
                 spike_rate = self.extract_rate(spikes_out)
+                print("maximum spike rate across all channels: ", np.max(spike_rate))
 
                 # simplest method for estimating DoA
                 method_list = ["peak", "periodic_ml", "trimmed_periodic_ml"]
@@ -513,6 +528,8 @@ class DemoBenchmark:
 
         return np.asarray(doa_estimate)
 
+
+# collect data for later analysis
 def benchmark(num_samples: int, frame_duration: float, filename:str):
     """
     this function runs the demo based on SNN and uses the estimated DoA to benchmark the localization performance.
@@ -531,8 +548,8 @@ def benchmark(num_samples: int, frame_duration: float, filename:str):
 
     # frequency range
     freq_bands = [
-        # [1600, 1900],
-        [2700, 3000],
+        [1600, 1900],
+        # [2000, 2300],
         # [3700, 4000]
     ]
 
@@ -570,16 +587,7 @@ def benchmark(num_samples: int, frame_duration: float, filename:str):
     )
 
 
-    # plot the histogram of results
-    benchmark_duration = num_samples * frame_duration
-
-    plt.close()
-    plt.hist(doa_samples, num_grid)
-    plt.xlabel("DoA")
-    plt.ylabel("histogram")
-    plt.title("SNN localization performance for {} second".format(benchmark_duration))
-
-def analyze(filename: str):
+def analyze(filename: str, report: bool = False):
     """this file reads the recorded data and does statistical analysis.
 
     Args:
@@ -606,34 +614,48 @@ def analyze(filename: str):
     # so this yields a plug-in estimator for the value of `sigma` given by E[|x|] x sqrt(pi/2)
     print("robust std: ", doa_mad * np.sqrt(np.pi/2))
 
-    num_mic = 7
-    num_grid = 64 * num_mic + 1
+    if report:
+        num_mic = 7
+        num_grid = 64 * num_mic + 1
 
-    plt.hist(data, num_grid)
-    plt.xlabel("DoA")
-    plt.ylabel("histogram")
-    plt.grid(True)
-    plt.title("Histogram of collected DoA samples")
-    plt.show()
+        plt.hist(data, num_grid)
+        plt.xlabel("DoA")
+        plt.ylabel("histogram")
+        plt.grid(True)
+        plt.title("Histogram of collected DoA samples")
+        plt.show()
 
 
 def main():
-    num_samples = 100
-    frame_duration = 0.25
+    num_samples = 200
+    num_sim = 5
+    frame_duration = 0.4
 
-    # save the collected data]
-    folder = Path(__file__).resolve().parent
-    filename = os.path.join(folder, "demo_benchmark_data.txt")
+    # save the collected data
+    folder = os.path.join(Path(__file__).resolve().parent, "demo-benchmark-simulation")
+    if not os.path.exists(folder):
+        os.mkdir(folder)
 
-    benchmark(
-        num_samples=num_samples,
-        frame_duration=frame_duration,
-        filename=filename
-    )
+    for sim in range(num_sim):
+        filename = os.path.join(folder, "{}.txt".format(datetime.now().strftime("%Y-%m-%d=>%H:%M:%S")))
+        print(f"\n\nsimulation {sim+1} / {num_sim}")
+        print("data to be saved in the file: ", filename)
+        print("\n\n")
 
-    # wait for the visualization to end completely
-    time.sleep(3)
-    analyze(filename=filename)
+        benchmark(
+            num_samples=num_samples,
+            frame_duration=frame_duration,
+            filename=filename
+        )
+
+        # wait for the visualization to end completely
+        time.sleep(4)
+        print(f"\n\nend of simulation {sim+1} / {num_sim}")
+        print("data saved in the file: ", filename)
+        print("\n\n")
+
+        # report the mean and std of the estimated data
+        analyze(filename=filename)
 
 if __name__ == "__main__":
     main()
