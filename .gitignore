@@ -32,3 +32,6 @@ paper_plots/review1/array_resolution_random_snn_wideband
 samna.log
 figures/beam_patterns_linear_supp/beam_patterns_linear_supp.pdf
 figures/beam_patterns_random_supp/beam_patterns_random_supp.pdf
+figures/SNN_localization/wideband_SNN_HT_beamforming.pdf
+figures/hilbert_example_supp/hilbert_example_supp.pdf
+*.bkp
