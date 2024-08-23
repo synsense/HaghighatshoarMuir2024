@@ -111,26 +111,32 @@ class DemoBenchmark:
             # build the template signal and design bemforming vectors
             time_temp = np.arange(0, recording_duration, step=1 / fs)
 
-            #! template 1: A sinusoid at the middle frequency
-            # NOTE: as we hav enoticed in the beam-pattern plots, the results are a little bit unstable for pure sinusoid signals.
-            # This is due to the fact that its zero-crossing is bandly affected by low sampling rate.
-            # To avoid this, we decided to add some random jitter to the frequency.
-            EPS = 0.05
-            freq_inst = freq_mid * (1 + EPS * np.random.randn(*time_temp.shape))
-            dt = 1/fs 
-            phase_inst = 2*np.pi*np.cumsum(freq_inst) * dt
-            sig_temp = np.sin(phase_inst)
+            template_types = ['chirp', 'sin']
 
-            #! template 2: A chirp spanning the whole frequency range
-            num_period = 1
-            period = (time_temp[-1] - time_temp[0])/num_period
-            f_start, f_end = freq_range 
+            template = 'chirp'
 
-            freq_inst = f_start + (f_end - f_start) * (time_temp % period)/period
-            dt = 1/fs
-            phase_inst = 2*np.pi * np.cumsum(freq_inst) * dt
+            if template == 'chirp':
+                #! template 1: A sinusoid at the middle frequency
+                # NOTE: as we hav enoticed in the beam-pattern plots, the results are a little bit unstable for pure sinusoid signals.
+                # This is due to the fact that its zero-crossing is bandly affected by low sampling rate.
+                # To avoid this, we decided to add some random jitter to the frequency.
+                EPS = 0.05
+                freq_inst = freq_mid * (1 + EPS * np.random.randn(*time_temp.shape))
+                dt = 1/fs 
+                phase_inst = 2*np.pi*np.cumsum(freq_inst) * dt
+                sig_temp = np.sin(phase_inst)
 
-            sig_temp = np.sin(phase_inst)
+            elif template == 'sin':
+                #! template 2: A chirp spanning the whole frequency range
+                num_period = 1
+                period = (time_temp[-1] - time_temp[0])/num_period
+                f_start, f_end = freq_range 
+
+                freq_inst = f_start + (f_end - f_start) * (time_temp % period)/period
+                dt = 1/fs
+                phase_inst = 2*np.pi * np.cumsum(freq_inst) * dt
+
+                sig_temp = np.sin(phase_inst)
 
             # build the beamforming vectors using templates
             bf_vecs = beamf.design_from_template(
@@ -548,9 +554,10 @@ def benchmark(num_samples: int, frame_duration: float, filename:str):
 
     # frequency range
     freq_bands = [
-        [1600, 1900],
+        # [1600, 2000],
         # [2000, 2300],
-        # [3700, 4000]
+        [2300, 2600],
+        # [3000, 3100],
     ]
 
     # grid of DoAs
@@ -558,10 +565,9 @@ def benchmark(num_samples: int, frame_duration: float, filename:str):
     doa_list = np.linspace(-np.pi, np.pi, num_grid)
 
     # duration of recording in each section
-    # recording_duration = 0.25
     recording_duration = frame_duration
     fs = 48_000
-    kernel_duration = 10e-3
+    kernel_duration = 20e-3
 
     # build the demo
     bipolar_spikes = True
@@ -602,7 +608,8 @@ def analyze(filename: str, report: bool = False):
     doa_mean = np.mean(data)
     doa_std = np.std(data)
     doa_med = np.median(data)
-    doa_mad = np.median(np.abs(data - doa_med))
+    doa_medad = np.median(np.abs(data - doa_med))
+    doa_mad = np.mean(np.abs(data - doa_med))
 
     print("mean doa: ", doa_mean)
     print("std: ", doa_std)
@@ -612,7 +619,8 @@ def analyze(filename: str, report: bool = False):
 
     # NOTE: this is calculated based on the Gaussian distribution where E[|x|] is `sqrt(2/pi) * sigma`
     # so this yields a plug-in estimator for the value of `sigma` given by E[|x|] x sqrt(pi/2)
-    print("robust std: ", doa_mad * np.sqrt(np.pi/2))
+    print("robust std: ", doa_medad * np.sqrt(np.pi/2))
+    print("mean robust std: ", doa_mad * np.sqrt(np.pi/2))
 
     if report:
         num_mic = 7
@@ -632,30 +640,45 @@ def main():
     frame_duration = 0.4
 
     # save the collected data
-    folder = os.path.join(Path(__file__).resolve().parent, "demo-benchmark-simulation")
+    folder = os.path.join(Path(__file__).resolve().parent, "demo-benchmark-simulation-freq2300-2600")
+    # folder = os.path.join(Path(__file__).resolve().parent, "demo-benchmark-simulation-freq2000-2300")
     if not os.path.exists(folder):
         os.mkdir(folder)
 
-    for sim in range(num_sim):
-        filename = os.path.join(folder, "{}.txt".format(datetime.now().strftime("%Y-%m-%d=>%H:%M:%S")))
-        print(f"\n\nsimulation {sim+1} / {num_sim}")
-        print("data to be saved in the file: ", filename)
-        print("\n\n")
+    modes = ['data-collect', 'analyze']
 
-        benchmark(
-            num_samples=num_samples,
-            frame_duration=frame_duration,
-            filename=filename
-        )
+    mode = 'analyze'
+    # mode = 'data-collect'
 
-        # wait for the visualization to end completely
-        time.sleep(4)
-        print(f"\n\nend of simulation {sim+1} / {num_sim}")
-        print("data saved in the file: ", filename)
-        print("\n\n")
+    if mode == 'data-collect':
+        for sim in range(num_sim):
+            filename = os.path.join(folder, "{}.txt".format(datetime.now().strftime("%Y-%m-%d=>%H:%M:%S")))
+            print(f"\n\nsimulation {sim+1} / {num_sim}")
+            print("data to be saved in the file: ", filename)
+            print("\n\n")
 
-        # report the mean and std of the estimated data
-        analyze(filename=filename)
+            benchmark(
+                num_samples=num_samples,
+                frame_duration=frame_duration,
+                filename=filename
+            )
+
+            # wait for the visualization to end completely
+            time.sleep(4)
+            print(f"\n\nend of simulation {sim+1} / {num_sim}")
+            print("data saved in the file: ", filename)
+            print("\n\n")
+
+            # report the mean and std of the estimated data
+            analyze(filename=filename)
+    else:
+        # collect all the files in the folder
+        files = [os.path.join(folder, f) for f in os.listdir(folder) if ".txt" in f]
+
+        for file in files:
+            print("\n\nfilename: ", file)
+            analyze(filename=file)
+
 
 if __name__ == "__main__":
     main()
