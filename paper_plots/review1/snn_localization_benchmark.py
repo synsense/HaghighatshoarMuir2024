@@ -2,7 +2,7 @@
 # This module builds a simple visualization demo for multi-mic devkit.
 # It uses the XyloSim model to process the spikes as it happens within the chip.
 # The resulting rate encoding is used to do localization and track the targets.
-# 
+#
 # Output of the demo is used to do some benchmarking on the SNN localization performance in real-time.
 #
 #
@@ -43,6 +43,8 @@ import matplotlib.pyplot as plt
 import os
 from pathlib import Path
 from datetime import datetime
+
+from copy import deepcopy
 
 
 class DemoBenchmark:
@@ -111,30 +113,30 @@ class DemoBenchmark:
             # build the template signal and design bemforming vectors
             time_temp = np.arange(0, recording_duration, step=1 / fs)
 
-            template_types = ['chirp', 'sin']
+            template_types = ["chirp", "sin"]
 
-            template = 'chirp'
+            template = "chirp"
 
-            if template == 'chirp':
+            if template == "chirp":
                 #! template 1: A sinusoid at the middle frequency
                 # NOTE: as we hav enoticed in the beam-pattern plots, the results are a little bit unstable for pure sinusoid signals.
                 # This is due to the fact that its zero-crossing is bandly affected by low sampling rate.
                 # To avoid this, we decided to add some random jitter to the frequency.
                 EPS = 0.05
                 freq_inst = freq_mid * (1 + EPS * np.random.randn(*time_temp.shape))
-                dt = 1/fs 
-                phase_inst = 2*np.pi*np.cumsum(freq_inst) * dt
+                dt = 1 / fs
+                phase_inst = 2 * np.pi * np.cumsum(freq_inst) * dt
                 sig_temp = np.sin(phase_inst)
 
-            elif template == 'sin':
+            elif template == "sin":
                 #! template 2: A chirp spanning the whole frequency range
                 num_period = 1
-                period = (time_temp[-1] - time_temp[0])/num_period
-                f_start, f_end = freq_range 
+                period = (time_temp[-1] - time_temp[0]) / num_period
+                f_start, f_end = freq_range
 
-                freq_inst = f_start + (f_end - f_start) * (time_temp % period)/period
-                dt = 1/fs
-                phase_inst = 2*np.pi * np.cumsum(freq_inst) * dt
+                freq_inst = f_start + (f_end - f_start) * (time_temp % period) / period
+                dt = 1 / fs
+                phase_inst = 2 * np.pi * np.cumsum(freq_inst) * dt
 
                 sig_temp = np.sin(phase_inst)
 
@@ -282,9 +284,7 @@ class DemoBenchmark:
             print(message)
 
         # build simulation module: xylosim or hardware version
-        self.xylo = XyloSim.from_config(
-            xylo_config, output_mode="Spike", dt=target_dt
-        )
+        self.xylo = XyloSim.from_config(xylo_config, output_mode="Spike", dt=target_dt)
 
     def spike_encoding(self, sig_in: np.ndarray) -> np.ndarray:
         """this function processes the input signal received from microphone and produces the spike encoding to be applied to SNN.
@@ -436,7 +436,7 @@ class DemoBenchmark:
             dim_samples=dim_samples,
             waiting_time=2,
         )
-    
+
         # data to be collected for benchmark
         doa_estimate = []
         num_collected_samples = 0
@@ -536,7 +536,7 @@ class DemoBenchmark:
 
 
 # collect data for later analysis
-def benchmark(num_samples: int, frame_duration: float, filename:str):
+def benchmark(num_samples: int, frame_duration: float, filename: str):
     """
     this function runs the demo based on SNN and uses the estimated DoA to benchmark the localization performance.
 
@@ -585,7 +585,6 @@ def benchmark(num_samples: int, frame_duration: float, filename:str):
     doa_samples = demo.benchmark(num_samples)
     print("collected doa-sampels: ", doa_samples)
 
-
     np.savetxt(
         fname=filename,
         X=doa_samples,
@@ -599,11 +598,38 @@ def analyze(filename: str, report: bool = False):
     Args:
         filename (str): name of the file.
     """
-    data = np.loadtxt(
-        fname=filename
-    )
 
+    def make_window(source, win_length):
+        ret_data = np.empty((np.size(source) - win_length, win_length))
+        for wind_ind in range(win_length):
+            ret_data[:, wind_ind] = source[wind_ind : -(win_length - wind_ind)]
+
+        return ret_data
+
+    def window_median(source, window_length, reject_jump):
+        source_window = make_window(source, window_length)
+        length = np.shape(source_window)[0]
+        data_ret = np.empty(length)
+
+        for wind_ind in range(length):
+            this_wind = source_window[wind_ind, :]
+            diff = this_wind - np.median(this_wind)
+            this_wind[np.abs(diff > reject_jump)] = np.nan
+            data_ret[wind_ind] = np.nanmedian(this_wind)
+
+        return data_ret
+
+    def post_process_data(source_data, window_length, jump_reject=20):
+        return window_median(source_data, window_length, jump_reject)
+
+    def mae(source, target):
+        return np.mean(np.abs(source - target))
+
+    data = np.loadtxt(fname=filename)
     data = np.asarray(data)
+    target = np.median(data)
+
+    print("doa mae: ", mae(post_process_data(data, 25), target))
 
     doa_mean = np.mean(data)
     doa_std = np.std(data)
@@ -619,8 +645,8 @@ def analyze(filename: str, report: bool = False):
 
     # NOTE: this is calculated based on the Gaussian distribution where E[|x|] is `sqrt(2/pi) * sigma`
     # so this yields a plug-in estimator for the value of `sigma` given by E[|x|] x sqrt(pi/2)
-    print("robust std: ", doa_medad * np.sqrt(np.pi/2))
-    print("mean robust std: ", doa_mad * np.sqrt(np.pi/2))
+    print("robust std: ", doa_medad * np.sqrt(np.pi / 2))
+    print("mean robust std: ", doa_mad * np.sqrt(np.pi / 2))
 
     if report:
         num_mic = 7
@@ -640,19 +666,23 @@ def main():
     frame_duration = 0.4
 
     # save the collected data
-    folder = os.path.join(Path(__file__).resolve().parent, "demo-benchmark-simulation-freq2300-2600")
+    folder = os.path.join(
+        Path(__file__).resolve().parent, "demo-benchmark-simulation-freq2300-2600"
+    )
     # folder = os.path.join(Path(__file__).resolve().parent, "demo-benchmark-simulation-freq2000-2300")
     if not os.path.exists(folder):
         os.mkdir(folder)
 
-    modes = ['data-collect', 'analyze']
+    modes = ["data-collect", "analyze"]
 
-    mode = 'analyze'
+    mode = "analyze"
     # mode = 'data-collect'
 
-    if mode == 'data-collect':
+    if mode == "data-collect":
         for sim in range(num_sim):
-            filename = os.path.join(folder, "{}.txt".format(datetime.now().strftime("%Y-%m-%d=>%H:%M:%S")))
+            filename = os.path.join(
+                folder, "{}.txt".format(datetime.now().strftime("%Y-%m-%d=>%H:%M:%S"))
+            )
             print(f"\n\nsimulation {sim+1} / {num_sim}")
             print("data to be saved in the file: ", filename)
             print("\n\n")
@@ -660,7 +690,7 @@ def main():
             benchmark(
                 num_samples=num_samples,
                 frame_duration=frame_duration,
-                filename=filename
+                filename=filename,
             )
 
             # wait for the visualization to end completely
