@@ -40,21 +40,26 @@ All packages and code have been tested with Python 3.8. `cmake` is required to b
 The figure generation scripts are in subdirectory `/paper_plots` . Run all of the python files in turn to generate figures, **from the base directory**.
 
 ```bash
-> python paper_plots/SCRIPT_NAME.py
+> cd paper_plots
+> python SCRIPT_NAME.py
 ...
 ```
 
 ### Beam patterns for various methods
 These scripts generate and plot beam patterns obtained from the various beamforming algorithms.
 
-| Script                           | Method                                                       |
-| -------------------------------- | ------------------------------------------------------------ |
-| `array_resolution_music.py`      | MUSIC beamforming                                            |
-| `array_resolution_snn.py`        | SNN (float32) implementation of SNN Hilbert beamforming      |
-| `array_resolution.py`            | Hilbert beamforming (non-SNN implementation)                 |
-| `multiple_targets_beamformer.py` | Conventional super-resolution beamforming, under multiple audio sources |
-| `multiple_targets_music.py`      | MUSIC beamforming, under multiple audio sources              |
-| `multiple_targets_snn.py`        | Hilbert SNN beamforming, under multiple audio sources        |
+| Script                             | Method                                                       |
+| ---------------------------------- | ------------------------------------------------------------ |
+| `array_resolution_music.py`        | MUSIC beamforming                                            |
+| `array_resolution_snn.py`          | SNN (float32) implementation of SNN Hilbert beamforming      |
+| `array_resolution.py`              | Hilbert beamforming (non-SNN implementation)                 |
+| `multiple_targets_beamformer.py`   | Conventional super-resolution beamforming, under multiple audio sources |
+| `multiple_targets_music.py`        | MUSIC beamforming, under multiple audio sources              |
+| `multiple_targets_snn.py`          | Hilbert SNN beamforming, under multiple audio sources        |
+| `array_resolution_linear_music.py` | MUSIC beamforming on a linear microphone array               |
+| `array_resolution_linear_snn.py`   | Hilbert SNN beamforming on a linear microphone array         |
+| `array_resolution_random_music.py` | MUSIC beamforming on a random microphone array               |
+| `array_resolution_random_snn.py`   | Hilbert SNN beamforming on a random microphone array         |
 
 ### Analysis of target localisation performance
 

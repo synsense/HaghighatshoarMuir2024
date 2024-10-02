@@ -144,7 +144,7 @@ def test_speech_target():
     sig_test = np.sin(2 * np.pi * freq_test * time_test)
 
     # - Load a speech sample
-    sig_test, samplefreq = sf.read("paper_plots/84-121123-0020.flac")
+    sig_test, samplefreq = sf.read("84-121123-0020.flac")
     time_test = np.arange(len(sig_test)) / samplefreq
     time_fs = np.linspace(
         time_test[0], time_test[-1], int(len(sig_test) / samplefreq * fs)

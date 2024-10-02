@@ -25,7 +25,7 @@ import os
 from pathlib import Path
 from tqdm import tqdm
 
-from paper_plots.review1.array_resolution_linear_snn import array_resolution_wideband
+from array_resolution_linear_snn import array_resolution_wideband
 
 
 def use_latex():
